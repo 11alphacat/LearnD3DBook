@@ -18,5 +18,16 @@
     <ClCompile Include="xmmatrix.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="practice.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="plugin_xmdef.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="practice.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
