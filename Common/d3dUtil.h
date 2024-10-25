@@ -109,6 +109,8 @@ public:
         // 0x022B & 0xff00
         // 0x0200
         // 512
+        // 常量缓冲区的大小必须是硬件最小分配空间（通常为256B）的整数倍
+        // 该操作保证数值能被 256 整除
         return (byteSize + 255) & ~255;
     }
 
@@ -174,6 +176,7 @@ struct MeshGeometry
 	Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
 
     // Data about the buffers.
+    // 与缓冲区相关的数据
 	UINT VertexByteStride = 0;
 	UINT VertexBufferByteSize = 0;
 	DXGI_FORMAT IndexFormat = DXGI_FORMAT_R16_UINT;
@@ -182,6 +185,8 @@ struct MeshGeometry
 	// A MeshGeometry may store multiple geometries in one vertex/index buffer.
 	// Use this container to define the Submesh geometries so we can draw
 	// the Submeshes individually.
+    // 一个 MeshGeometry 结构体能够存储一组顶点/索引缓冲区中的多个几何体
+    // 若利用下列容器来定义子网格几何体，便能单独绘制出其中的子网格
 	std::unordered_map<std::string, SubmeshGeometry> DrawArgs;
 
 	D3D12_VERTEX_BUFFER_VIEW VertexBufferView()const
@@ -205,6 +210,7 @@ struct MeshGeometry
 	}
 
 	// We can free this memory after we finish upload to the GPU.
+    // 将数据上传至 GPU 后，便能释放这些内存
 	void DisposeUploaders()
 	{
 		VertexBufferUploader = nullptr;

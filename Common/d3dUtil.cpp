@@ -45,26 +45,30 @@ Microsoft::WRL::ComPtr<ID3D12Resource> d3dUtil::CreateDefaultBuffer(
     ComPtr<ID3D12Resource> defaultBuffer;
 
     // Create the actual default buffer resource.
+    // 创建实际的默认缓冲区资源
     ThrowIfFailed(device->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+        &CD3DX12_RESOURCE_DESC::Buffer(byteSize),   // 显式构造，缓冲区大小为 byteSize 字节
 		D3D12_RESOURCE_STATE_COMMON,
         nullptr,
         IID_PPV_ARGS(defaultBuffer.GetAddressOf())));
 
     // In order to copy CPU memory data into our default buffer, we need to create
     // an intermediate upload heap. 
+    // 为了将 CPU 端内存中的数据复制到默认缓冲区
+    // 需要先创建一个处于中介位置的上传堆
     ThrowIfFailed(device->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+        &CD3DX12_RESOURCE_DESC::Buffer(byteSize),   // 显式构造，缓冲区大小为 byteSize 字节
 		D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
         IID_PPV_ARGS(uploadBuffer.GetAddressOf())));
 
 
     // Describe the data we want to copy into the default buffer.
+    // 描述希望复制到默认缓冲区的数据
     D3D12_SUBRESOURCE_DATA subResourceData = {};
     subResourceData.pData = initData;
     subResourceData.RowPitch = byteSize;
@@ -73,10 +77,16 @@ Microsoft::WRL::ComPtr<ID3D12Resource> d3dUtil::CreateDefaultBuffer(
     // Schedule to copy the data to the default buffer resource.  At a high level, the helper function UpdateSubresources
     // will copy the CPU memory into the intermediate upload heap.  Then, using ID3D12CommandList::CopySubresourceRegion,
     // the intermediate upload heap data will be copied to mBuffer.
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(), 
+	// 接下来的步骤将数据复制到默认缓冲区资源
+        // 将defaultBuffer资源的状态从通用状态转换为复制目标状态
+    cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(), 
 		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
+
+    // UpdateSubresources 辅助函数先将数据从CPU端的内存复制到上传堆（中介）\
+        再通过调用ID3D12CommandList::CopySubresourceRegion 将上传堆的数据复制到默认堆中
     UpdateSubresources<1>(cmdList, defaultBuffer.Get(), uploadBuffer.Get(), 0, 0, 1, &subResourceData);
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(),
+	    // 将defaultBuffer资源从复制目标状态转换为通用读取状态
+    cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(),
 		D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
 
     // Note: uploadBuffer has to be kept alive after the above function calls because
