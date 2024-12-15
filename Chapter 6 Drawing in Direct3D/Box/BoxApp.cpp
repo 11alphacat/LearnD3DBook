@@ -16,11 +16,24 @@ using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
-struct Vertex
+//struct Vertex
+//{
+//    XMFLOAT3 Pos;
+//    XMFLOAT4 Color;
+//};
+
+// =====================================
+struct VPosData
 {
     XMFLOAT3 Pos;
+};
+
+struct VColorData
+{
     XMFLOAT4 Color;
 };
+// =====================================
+
 
 // 常量对象结构体
 // 绘制物体所用对象的常量数据
@@ -33,7 +46,7 @@ class BoxApp : public D3DApp
 {
 public:
 	BoxApp(HINSTANCE hInstance);
-    BoxApp(const BoxApp& rhs) = delete;
+     BoxApp(const BoxApp& rhs) = delete;
     BoxApp& operator=(const BoxApp& rhs) = delete;
 	~BoxApp();
 
@@ -68,6 +81,9 @@ private:
     ComPtr<ID3DBlob> mpsByteCode = nullptr;
 
     std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
+
+    std::vector<D3D12_INPUT_ELEMENT_DESC> mVertexDesc;
+
 
     ComPtr<ID3D12PipelineState> mPSO = nullptr;
 
@@ -316,7 +332,9 @@ void BoxApp::Draw(const GameTimer& gt)
 
         用途：1.顶点数据输入；2.多顶点缓冲区支持；3.动态顶点数据更新
     */
-	mCommandList->IASetVertexBuffers(0, 1, &mBoxGeo->VertexBufferView());
+	//mCommandList->IASetVertexBuffers(0, 1, &mBoxGeo->VertexBufferView());
+    mCommandList->IASetVertexBuffers(0, 1, &mBoxGeo->VertexPosBufferView());
+    mCommandList->IASetVertexBuffers(1, 1, &mBoxGeo->VertexColorBufferView());
 
     /*
         设置输入装配阶段（Input Assembler Stage）的索引缓冲区（Index Buffer）
@@ -527,22 +545,57 @@ void BoxApp::BuildShadersAndInputLayout()
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
+
+// =======================
+    mVertexDesc =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+
+    };
+// =======================
+
 }
 
 void BoxApp::BuildBoxGeometry()
 {
     // 创建存有立方体 8 个顶点的默认缓冲区，并为每个顶点赋予不同的颜色
-    std::array<Vertex, 8> vertices =
+  //  std::array<Vertex, 8> vertices =
+  //  {
+  //      Vertex({ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::White) }),
+		//Vertex({ XMFLOAT3(-0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Black) }),
+		//Vertex({ XMFLOAT3(+0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Red) }),
+		//Vertex({ XMFLOAT3(+0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::Green) }),
+		//Vertex({ XMFLOAT3(-0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Blue) }),
+		//Vertex({ XMFLOAT3(-0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Yellow) }),
+		//Vertex({ XMFLOAT3(+0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Cyan) }),
+		//Vertex({ XMFLOAT3(+0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Magenta) })
+  //  };
+    
+    std::array<VPosData, 8> verticesPos =
     {
-        Vertex({ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::White) }),
-		Vertex({ XMFLOAT3(-0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Black) }),
-		Vertex({ XMFLOAT3(+0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Red) }),
-		Vertex({ XMFLOAT3(+0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::Green) }),
-		Vertex({ XMFLOAT3(-0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Blue) }),
-		Vertex({ XMFLOAT3(-0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Yellow) }),
-		Vertex({ XMFLOAT3(+0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Cyan) }),
-		Vertex({ XMFLOAT3(+0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Magenta) })
+        VPosData({XMFLOAT3(-0.5f, -0.5f, -0.5f)}),
+        VPosData({XMFLOAT3(-0.5f, +0.5f, -0.5f)}),
+        VPosData({XMFLOAT3(+0.5f, +0.5f, -0.5f)}),
+        VPosData({XMFLOAT3(+0.5f, -0.5f, -0.5f)}),
+        VPosData({XMFLOAT3(-0.5f, -0.5f, +0.5f)}),
+        VPosData({XMFLOAT3(-0.5f, +0.5f, +0.5f)}),
+        VPosData({XMFLOAT3(+0.5f, +0.5f, +0.5f)}),
+        VPosData({XMFLOAT3(+0.5f, -0.5f, +0.5f)})
     };
+
+    std::array<VColorData, 8> verticesColor =
+    {
+        VColorData({XMFLOAT4(Colors::White)}),
+        VColorData({ XMFLOAT4(Colors::Black)}),
+        VColorData({ XMFLOAT4(Colors::Red) }),
+        VColorData({ XMFLOAT4(Colors::Green) }),
+        VColorData({ XMFLOAT4(Colors::Blue) }),
+        VColorData({ XMFLOAT4(Colors::Yellow) }),
+        VColorData({ XMFLOAT4(Colors::Cyan) }),
+        VColorData({ XMFLOAT4(Colors::Magenta) })
+    };
+
 
     // 顶点索引数组（以默认时针绘制三角形）
 	std::array<std::uint16_t, 36> indices =
@@ -578,28 +631,43 @@ void BoxApp::BuildBoxGeometry()
 		4, 3, 7
 	};
 
-    const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+    //const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+    const UINT vpbByteSize = (UINT)verticesPos.size() * sizeof(VPosData);
+    const UINT vcbByteSize = (UINT)verticesColor.size() * sizeof(VColorData);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
 	mBoxGeo = std::make_unique<MeshGeometry>();
 	mBoxGeo->Name = "boxGeo";
 
-	ThrowIfFailed(D3DCreateBlob(vbByteSize, &mBoxGeo->VertexBufferCPU));
-	CopyMemory(mBoxGeo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+	//ThrowIfFailed(D3DCreateBlob(vbByteSize, &mBoxGeo->VertexBufferCPU));
+	//CopyMemory(mBoxGeo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+    ThrowIfFailed(D3DCreateBlob(vpbByteSize, &mBoxGeo->VertexPosBufferCPU));
+    CopyMemory(mBoxGeo->VertexPosBufferCPU->GetBufferPointer(), verticesPos.data(), vpbByteSize);
+    ThrowIfFailed(D3DCreateBlob(vcbByteSize, &mBoxGeo->VertexColorBufferCPU));
+    CopyMemory(mBoxGeo->VertexColorBufferCPU->GetBufferPointer(), verticesColor.data(), vcbByteSize);
 
 	ThrowIfFailed(D3DCreateBlob(ibByteSize, &mBoxGeo->IndexBufferCPU));
 	CopyMemory(mBoxGeo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
     // 使用辅助函数来创建默认缓冲区
-	mBoxGeo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), vertices.data(), vbByteSize, mBoxGeo->VertexBufferUploader);
+	//mBoxGeo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+	//	mCommandList.Get(), vertices.data(), vbByteSize, mBoxGeo->VertexBufferUploader);
+    mBoxGeo->VertexPosBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+        mCommandList.Get(), verticesPos.data(), vpbByteSize, mBoxGeo->VertexPosBufferUploader);
+    mBoxGeo->VertexColorBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+        mCommandList.Get(), verticesColor.data(), vcbByteSize, mBoxGeo->VertexColorBufferUploader);
 
 	mBoxGeo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), indices.data(), ibByteSize, mBoxGeo->IndexBufferUploader);
 
-	mBoxGeo->VertexByteStride = sizeof(Vertex);
-	mBoxGeo->VertexBufferByteSize = vbByteSize;
-	mBoxGeo->IndexFormat = DXGI_FORMAT_R16_UINT;
+    //mBoxGeo->VertexByteStride = sizeof(Vertex);
+    //mBoxGeo->VertexBufferByteSize = vbByteSize;
+    mBoxGeo->VertexPosByteStride = sizeof(VPosData);
+    mBoxGeo->VertexPosBufferByteSize = vpbByteSize;
+    mBoxGeo->VertexColorByteStride = sizeof(VColorData);
+    mBoxGeo->VertexColorBufferByteSize = vcbByteSize;
+
+    mBoxGeo->IndexFormat = DXGI_FORMAT_R16_UINT;
 	mBoxGeo->IndexBufferByteSize = ibByteSize;
 
 	SubmeshGeometry submesh;

@@ -166,19 +166,29 @@ struct MeshGeometry
 
 	// System memory copies.  Use Blobs because the vertex/index format can be generic.
 	// It is up to the client to cast appropriately.  
-	Microsoft::WRL::ComPtr<ID3DBlob> VertexBufferCPU = nullptr;
-	Microsoft::WRL::ComPtr<ID3DBlob> IndexBufferCPU  = nullptr;
+	//Microsoft::WRL::ComPtr<ID3DBlob> VertexBufferCPU = nullptr;
+    Microsoft::WRL::ComPtr<ID3DBlob> VertexPosBufferCPU = nullptr;
+    Microsoft::WRL::ComPtr<ID3DBlob> VertexColorBufferCPU = nullptr;
+    Microsoft::WRL::ComPtr<ID3DBlob> IndexBufferCPU  = nullptr;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
+	//Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> VertexPosBufferGPU = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> VertexColorBufferGPU = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferGPU = nullptr;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferUploader = nullptr;
+    //Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferUploader = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> VertexPosBufferUploader = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> VertexColorBufferUploader = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
 
     // Data about the buffers.
     // 与缓冲区相关的数据
-	UINT VertexByteStride = 0;
-	UINT VertexBufferByteSize = 0;
+    //UINT VertexByteStride = 0;
+    UINT VertexPosByteStride = 0;
+    UINT VertexColorByteStride = 0;
+    //UINT VertexBufferByteSize = 0;
+    UINT VertexPosBufferByteSize = 0;
+    UINT VertexColorBufferByteSize = 0;
 	DXGI_FORMAT IndexFormat = DXGI_FORMAT_R16_UINT;
 	UINT IndexBufferByteSize = 0;
 
@@ -189,15 +199,35 @@ struct MeshGeometry
     // 若利用下列容器来定义子网格几何体，便能单独绘制出其中的子网格
 	std::unordered_map<std::string, SubmeshGeometry> DrawArgs;
 
-	D3D12_VERTEX_BUFFER_VIEW VertexBufferView()const
-	{
-		D3D12_VERTEX_BUFFER_VIEW vbv;
-		vbv.BufferLocation = VertexBufferGPU->GetGPUVirtualAddress();
-		vbv.StrideInBytes = VertexByteStride;
-		vbv.SizeInBytes = VertexBufferByteSize;
+	//D3D12_VERTEX_BUFFER_VIEW VertexBufferView()const
+	//{
+	//	D3D12_VERTEX_BUFFER_VIEW vbv;
+	//	vbv.BufferLocation = VertexBufferGPU->GetGPUVirtualAddress();
+	//	vbv.StrideInBytes = VertexByteStride;
+	//	vbv.SizeInBytes = VertexBufferByteSize;
 
-		return vbv;
-	}
+	//	return vbv;
+	//}
+
+    D3D12_VERTEX_BUFFER_VIEW VertexPosBufferView()const
+    {
+        D3D12_VERTEX_BUFFER_VIEW vbv;
+        vbv.BufferLocation = VertexPosBufferGPU->GetGPUVirtualAddress();
+        vbv.StrideInBytes = VertexPosByteStride;
+        vbv.SizeInBytes = VertexPosBufferByteSize;
+
+        return vbv;
+    }
+
+    D3D12_VERTEX_BUFFER_VIEW VertexColorBufferView()const
+    {
+        D3D12_VERTEX_BUFFER_VIEW vbv;
+        vbv.BufferLocation = VertexColorBufferGPU->GetGPUVirtualAddress();
+        vbv.StrideInBytes = VertexColorByteStride;
+        vbv.SizeInBytes = VertexColorBufferByteSize;
+
+        return vbv;
+    }
 
 	D3D12_INDEX_BUFFER_VIEW IndexBufferView()const
 	{
@@ -213,7 +243,9 @@ struct MeshGeometry
     // 将数据上传至 GPU 后，便能释放这些内存
 	void DisposeUploaders()
 	{
-		VertexBufferUploader = nullptr;
+        //VertexBufferUploader = nullptr;
+        VertexPosBufferUploader = nullptr;
+        VertexColorBufferUploader = nullptr;
 		IndexBufferUploader = nullptr;
 	}
 };
