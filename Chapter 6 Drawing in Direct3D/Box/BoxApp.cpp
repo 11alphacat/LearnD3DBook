@@ -27,6 +27,7 @@ struct Vertex
 struct ObjectConstants
 {
     XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();   // ³õÊ¼»¯Îª 4x4 µÄµ¥Î»¾ØÕó
+    float Time = 0.0f;
 };
 
 class BoxApp : public D3DApp
@@ -196,6 +197,7 @@ void BoxApp::Update(const GameTimer& gt)
     // ÓÃ×îÐÂµÄ worldViewProj ¾ØÕóÀ´¸üÐÂ³£Á¿Çø
 	ObjectConstants objConstants;
     XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
+    objConstants.Time = gt.TotalTime();
     mObjectCB->CopyData(0, objConstants);
 }
 
@@ -356,10 +358,26 @@ BaseDescriptor£ºÃèÊö·û±íµÄÆðÊ¼ GPU ÃèÊö·û¾ä±ú¡£ÃèÊö·û±íÊÇÒ»×éÃèÊö·ûµÄ¼¯ºÏ£¬ÓÃÓÚÃ
             2.¼õÉÙÄÚ´æ¿ªÏúºÍ´¦Àí¿ªÏú£¬Ö»ÐèÒª´æ´¢Ò»·Ý¼¸ºÎÍ¼ÐÎÊý¾Ý£¨¶¥µãºÍË÷Òý»º³åÇø£©
              Ö»ÐèÒª¶Ô¼¸ºÎÍ¼ÐÎ½øÐÐÒ»´Î¶¥µãºÍÏñËØ´¦Àí£¬È»ºóÍ¨¹ýÊµÀý»¯²ÎÊý£¨Èç±ä»»¾ØÕó¡¢ÑÕÉ«µÈ£©À´Çø·Ö²»Í¬µÄÊµÀý
     */
-    mCommandList->DrawIndexedInstanced(
-		mBoxGeo->DrawArgs["box"].IndexCount,    // Ã¿¸öÊµÀýÒª»æÖÆµÄË÷ÒýÊýÁ¿
-		1, 0, 0, 0);
+  //  mCommandList->DrawIndexedInstanced(
+		//mBoxGeo->DrawArgs["box"].IndexCount,    // Ã¿¸öÊµÀýÒª»æÖÆµÄË÷ÒýÊýÁ¿
+		//1, 0, 0, 0);
 	
+    mCommandList->DrawIndexedInstanced(
+        mBoxGeo->DrawArgs["box"].IndexCount,
+        1,
+        mBoxGeo->DrawArgs["box"].StartIndexLocation,
+        mBoxGeo->DrawArgs["box"].BaseVertexLocation,
+        0
+    );
+
+    mCommandList->DrawIndexedInstanced(
+        mBoxGeo->DrawArgs["pyramid"].IndexCount,
+        1,
+        mBoxGeo->DrawArgs["pyramid"].StartIndexLocation,
+        mBoxGeo->DrawArgs["pyramid"].BaseVertexLocation,
+        0
+    );
+
     // Indicate a state transition on the resource usage.
     // ´ÓäÖÈ¾Ä¿±ê×´Ì¬×ª»»Îª³ÊÏÖ×´Ì¬
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -526,13 +544,14 @@ void BoxApp::BuildShadersAndInputLayout()
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        //{ "INDEX", 0, DXGI_FORMAT_R32_UINT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
     };
 }
 
 void BoxApp::BuildBoxGeometry()
 {
     // ´´½¨´æÓÐÁ¢·½Ìå 8 ¸ö¶¥µãµÄÄ¬ÈÏ»º³åÇø£¬²¢ÎªÃ¿¸ö¶¥µã¸³Óè²»Í¬µÄÑÕÉ«
-    std::array<Vertex, 8> vertices =
+    std::array<Vertex, 8 + 5> vertices =
     {
         Vertex({ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::White) }),
 		Vertex({ XMFLOAT3(-0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Black) }),
@@ -541,11 +560,18 @@ void BoxApp::BuildBoxGeometry()
 		Vertex({ XMFLOAT3(-0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Blue) }),
 		Vertex({ XMFLOAT3(-0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Yellow) }),
 		Vertex({ XMFLOAT3(+0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Cyan) }),
-		Vertex({ XMFLOAT3(+0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Magenta) })
+		Vertex({ XMFLOAT3(+0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Magenta) }),
+
+        // pyramid
+        Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({ XMFLOAT3(0.0f, 1.5f, 0.0f), XMFLOAT4(Colors::Red) })
     };
 
     // ¶¥µãË÷ÒýÊý×é£¨ÒÔÄ¬ÈÏÊ±Õë»æÖÆÈý½ÇÐÎ£©
-	std::array<std::uint16_t, 36> indices =
+	std::array<std::uint16_t, 36 + 18> indices =
 	{
 		// front face
         // Á¢·½ÌåÇ°±íÃæÈý½ÇÐÎ
@@ -575,8 +601,62 @@ void BoxApp::BuildBoxGeometry()
 		// bottom face
         // ÏÂ±íÃæ
 		4, 0, 3,
-		4, 3, 7
+		4, 3, 7,
+
+    // pyramid
+        // front face
+        0, 4, 1,
+
+        // back face
+        3, 4, 2,
+
+        // left face
+        2, 4, 0,
+
+        // right face
+        1, 4, 3,
+
+        // bottom face
+        0, 1, 2,
+        1, 3, 2
 	};
+
+
+
+    /*
+    prac 6.13.4 pyramid
+    */
+    //std::array<Vertex, 5> vertices =
+    //{
+    //    Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
+    //    //Vertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) }),
+    //    //Vertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) }),
+    //    Vertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
+    //    Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Green) }),
+    //    //Vertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) }),
+    //    //Vertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) }),
+    //    Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Green) }),
+    //    Vertex({ XMFLOAT3(0.0f, 1.5f, 0.0f), XMFLOAT4(Colors::Red) })
+    //};
+
+    //std::array<std::uint16_t, 18> indices =
+    //{
+    //    // front face
+    //    0, 4, 1,
+
+    //    // back face
+    //    3, 4, 2,
+
+    //    // left face
+    //    2, 4, 0,
+
+    //    // right face
+    //    1, 4, 3,
+
+    //    // bottom face
+    //    0, 1, 2,
+    //    1, 3, 2
+    //};
 
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
@@ -603,11 +683,20 @@ void BoxApp::BuildBoxGeometry()
 	mBoxGeo->IndexBufferByteSize = ibByteSize;
 
 	SubmeshGeometry submesh;
-	submesh.IndexCount = (UINT)indices.size();
+	submesh.IndexCount = 36;
+    submesh.VertexCount = 8;
 	submesh.StartIndexLocation = 0;
 	submesh.BaseVertexLocation = 0;
 
+    SubmeshGeometry submeshPyramid;
+    submeshPyramid.IndexCount = (UINT)indices.size() - 36;
+    submeshPyramid.VertexCount = (UINT)vertices.size() - 8;
+    submeshPyramid.StartIndexLocation = submesh.IndexCount;
+    submeshPyramid.BaseVertexLocation = submesh.VertexCount;
+
 	mBoxGeo->DrawArgs["box"] = submesh;
+    mBoxGeo->DrawArgs["pyramid"] = submeshPyramid;
+
 }
 
 void BoxApp::BuildPSO()
