@@ -334,9 +334,7 @@ void BoxApp::Draw(const GameTimer& gt)
             3.¶¯Ì¬ÇÐ»»Í¼ÔªÍØÆË
     */
     mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    //mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    //mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    
+
     /*
         ÉèÖÃÍ¼ÐÎÃüÁîÁÐ±íµÄ¸ùÇ©ÃûÖÐµÄÃèÊö·û±í£¨Descriptor Table£©
 
@@ -360,6 +358,32 @@ BaseDescriptor£ºÃèÊö·û±íµÄÆðÊ¼ GPU ÃèÊö·û¾ä±ú¡£ÃèÊö·û±íÊÇÒ»×éÃèÊö·ûµÄ¼¯ºÏ£¬ÓÃÓÚÃ
 		mBoxGeo->DrawArgs["box"].IndexCount,    // Ã¿¸öÊµÀýÒª»æÖÆµÄË÷ÒýÊýÁ¿
 		1, 0, 0, 0);
 	
+    mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+    mCommandList->DrawInstanced(
+        mBoxGeo->DrawArgs["pointline"].IndexCount,
+        1, mBoxGeo->DrawArgs["pointline"].BaseVertexLocation, 0);
+
+    mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP);
+    mCommandList->DrawInstanced(
+        mBoxGeo->DrawArgs["linestrip"].IndexCount,
+        1, mBoxGeo->DrawArgs["linestrip"].BaseVertexLocation, 0);
+
+
+    mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+    mCommandList->DrawInstanced(
+        mBoxGeo->DrawArgs["linelist"].IndexCount,
+        1, mBoxGeo->DrawArgs["linelist"].BaseVertexLocation, 0);
+    
+    mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    mCommandList->DrawInstanced(
+        mBoxGeo->DrawArgs["trianglestrip"].IndexCount,
+        1, mBoxGeo->DrawArgs["trianglestrip"].BaseVertexLocation, 0);
+
+    mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    mCommandList->DrawInstanced(
+        mBoxGeo->DrawArgs["trianglelist"].IndexCount,
+        1, mBoxGeo->DrawArgs["trianglelist"].BaseVertexLocation, 0);
+
     // Indicate a state transition on the resource usage.
     // ´ÓäÖÈ¾Ä¿±ê×´Ì¬×ª»»Îª³ÊÏÖ×´Ì¬
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -532,16 +556,76 @@ void BoxApp::BuildShadersAndInputLayout()
 void BoxApp::BuildBoxGeometry()
 {
     // ´´½¨´æÓÐÁ¢·½Ìå 8 ¸ö¶¥µãµÄÄ¬ÈÏ»º³åÇø£¬²¢ÎªÃ¿¸ö¶¥µã¸³Óè²»Í¬µÄÑÕÉ«
-    std::array<Vertex, 8> vertices =
+  //  std::array<Vertex, 8> vertices =
+  //  {
+  //      Vertex({ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::White) }),
+		//Vertex({ XMFLOAT3(-0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Black) }),
+		//Vertex({ XMFLOAT3(+0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Red) }),
+		//Vertex({ XMFLOAT3(+0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::Green) }),
+		//Vertex({ XMFLOAT3(-0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Blue) }),
+		//Vertex({ XMFLOAT3(-0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Yellow) }),
+		//Vertex({ XMFLOAT3(+0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Cyan) }),
+		//Vertex({ XMFLOAT3(+0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Magenta) })
+  //  };
+
+    // ref ==> https://yangshuohao.blog.csdn.net/article/details/104653168
+    std::array<Vertex, 49> vertices =
     {
         Vertex({ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::White) }),
-		Vertex({ XMFLOAT3(-0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Black) }),
-		Vertex({ XMFLOAT3(+0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Red) }),
-		Vertex({ XMFLOAT3(+0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::Green) }),
-		Vertex({ XMFLOAT3(-0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Blue) }),
-		Vertex({ XMFLOAT3(-0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Yellow) }),
-		Vertex({ XMFLOAT3(+0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Cyan) }),
-		Vertex({ XMFLOAT3(+0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Magenta) })
+        Vertex({ XMFLOAT3(-0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Black) }),
+        Vertex({ XMFLOAT3(+0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Red) }),
+        Vertex({ XMFLOAT3(+0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::Green) }),
+        Vertex({ XMFLOAT3(-0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Blue) }),
+        Vertex({ XMFLOAT3(-0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Yellow) }),
+        Vertex({ XMFLOAT3(+0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Cyan) }),
+        Vertex({ XMFLOAT3(+0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Magenta)}),
+        //add end
+        //a point list
+        Vertex({ XMFLOAT3(-4.0f, -4.0f, 2.0f), XMFLOAT4(Colors::Red) }),
+        Vertex({ XMFLOAT3(-3.0f,  0.0f, 2.0f), XMFLOAT4(Colors::Red) }),
+        Vertex({ XMFLOAT3(-2.0f, -3.0f, 2.0f), XMFLOAT4(Colors::Red) }),
+        Vertex({ XMFLOAT3(0.0f,  0.0f, 2.0f), XMFLOAT4(Colors::Red) }),
+        Vertex({ XMFLOAT3(1.0f, -2.0f, 2.0f), XMFLOAT4(Colors::Red) }),
+        Vertex({ XMFLOAT3(3.0f,  0.0f, 2.0f), XMFLOAT4(Colors::Red) }),
+        Vertex({ XMFLOAT3(5.0f, -2.0f, 2.0f), XMFLOAT4(Colors::Red) }),
+        Vertex({ XMFLOAT3(7.0f,  1.0f, 2.0f), XMFLOAT4(Colors::Red) }),
+        //a line strip
+        Vertex({ XMFLOAT3(-4.0f, -4.0f, 3.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({ XMFLOAT3(-3.0f,  0.0f, 3.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({ XMFLOAT3(-2.0f, -3.0f, 3.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({ XMFLOAT3(0.0f,  0.0f, 3.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({ XMFLOAT3(1.0f, -2.0f, 3.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({ XMFLOAT3(3.0f,  0.0f, 3.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({ XMFLOAT3(5.0f, -2.0f, 3.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({ XMFLOAT3(7.0f,  1.0f, 3.0f), XMFLOAT4(Colors::Green) }),
+        //a line list
+        Vertex({ XMFLOAT3(-4.0f, -4.0f, 4.0f), XMFLOAT4(Colors::Blue) }),
+        Vertex({ XMFLOAT3(-3.0f,  0.0f, 4.0f), XMFLOAT4(Colors::Blue) }),
+        Vertex({ XMFLOAT3(-2.0f, -3.0f, 4.0f), XMFLOAT4(Colors::Blue) }),
+        Vertex({ XMFLOAT3(0.0f,  0.0f, 4.0f), XMFLOAT4(Colors::Blue) }),
+        Vertex({ XMFLOAT3(1.0f, -2.0f, 4.0f), XMFLOAT4(Colors::Blue) }),
+        Vertex({ XMFLOAT3(3.0f,  0.0f, 4.0f), XMFLOAT4(Colors::Blue) }),
+        Vertex({ XMFLOAT3(5.0f, -2.0f, 4.0f), XMFLOAT4(Colors::Blue) }),
+        Vertex({ XMFLOAT3(7.0f,  1.0f, 4.0f), XMFLOAT4(Colors::Blue) }),
+        //a triangle strip
+        Vertex({ XMFLOAT3(-4.0f, -4.0f, 5.0f), XMFLOAT4(Colors::White) }),
+        Vertex({ XMFLOAT3(-3.0f,  0.0f, 5.0f), XMFLOAT4(Colors::Black) }),
+        Vertex({ XMFLOAT3(-2.0f, -3.0f, 5.0f), XMFLOAT4(Colors::Red) }),
+        Vertex({ XMFLOAT3(0.0f,   0.0f, 5.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({ XMFLOAT3(1.0f,  -2.0f, 5.0f), XMFLOAT4(Colors::Blue) }),
+        Vertex({ XMFLOAT3(3.0f,   0.0f, 5.0f), XMFLOAT4(Colors::Yellow) }),
+        Vertex({ XMFLOAT3(5.0f,  -2.0f, 5.0f), XMFLOAT4(Colors::Cyan) }),
+        Vertex({ XMFLOAT3(7.0f,   1.0f, 5.0f), XMFLOAT4(Colors::Magenta) }),
+        //a point list
+        Vertex({ XMFLOAT3(-4.0f, -4.0f, 6.0f), XMFLOAT4(Colors::White) }),
+        Vertex({ XMFLOAT3(-3.0f,  0.0f, 6.0f), XMFLOAT4(Colors::White) }),
+        Vertex({ XMFLOAT3(-2.0f, -3.0f, 6.0f), XMFLOAT4(Colors::White) }),
+        Vertex({ XMFLOAT3(0.0f,   0.0f, 6.0f), XMFLOAT4(Colors::Yellow) }),
+        Vertex({ XMFLOAT3(3.0f,   0.0f, 6.0f), XMFLOAT4(Colors::Yellow) }),
+        Vertex({ XMFLOAT3(1.0f,  -2.0f, 6.0f), XMFLOAT4(Colors::Yellow) }),
+        Vertex({ XMFLOAT3(5.0f,  -2.0f, 6.0f), XMFLOAT4(Colors::Magenta) }),
+        Vertex({ XMFLOAT3(7.0f,   1.0f, 6.0f), XMFLOAT4(Colors::Magenta) }),
+        Vertex({ XMFLOAT3(8.0f,   0.0f, 6.0f), XMFLOAT4(Colors::Magenta) })
     };
 
     // ¶¥µãË÷ÒýÊý×é£¨ÒÔÄ¬ÈÏÊ±Õë»æÖÆÈý½ÇÐÎ£©
@@ -607,7 +691,37 @@ void BoxApp::BuildBoxGeometry()
 	submesh.StartIndexLocation = 0;
 	submesh.BaseVertexLocation = 0;
 
+    SubmeshGeometry submeshPointList;
+    submeshPointList.IndexCount = 8;
+    submeshPointList.StartIndexLocation = 0;
+    submeshPointList.BaseVertexLocation = 8;
+
+    SubmeshGeometry submeshLineStrip;
+    submeshLineStrip.IndexCount = 8;
+    submeshLineStrip.StartIndexLocation = 0;
+    submeshLineStrip.BaseVertexLocation = 16;
+
+    SubmeshGeometry submeshLineList;
+    submeshLineList.IndexCount = 8;
+    submeshLineList.StartIndexLocation = 0;
+    submeshLineList.BaseVertexLocation = 24;
+
+    SubmeshGeometry submeshTriangleStrip;
+    submeshTriangleStrip.IndexCount = 8;
+    submeshTriangleStrip.StartIndexLocation = 0;
+    submeshTriangleStrip.BaseVertexLocation = 32;
+
+    SubmeshGeometry submeshTriangleList;
+    submeshTriangleList.IndexCount = 8;
+    submeshTriangleList.StartIndexLocation = 0;
+    submeshTriangleList.BaseVertexLocation = 40;
+
 	mBoxGeo->DrawArgs["box"] = submesh;
+    mBoxGeo->DrawArgs["pointlist"] = submeshPointList;
+    mBoxGeo->DrawArgs["linestrip"] = submeshLineStrip;
+    mBoxGeo->DrawArgs["linelist"] = submeshLineList;
+    mBoxGeo->DrawArgs["trianglestrip"] = submeshTriangleStrip;
+    mBoxGeo->DrawArgs["trianglelist"] = submeshTriangleList;
 }
 
 void BoxApp::BuildPSO()
