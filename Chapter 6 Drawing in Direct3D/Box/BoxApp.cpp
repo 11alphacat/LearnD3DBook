@@ -18,6 +18,7 @@ using namespace DirectX::PackedVector;
 
 struct Vertex
 {
+    uint32_t Index;
     XMFLOAT3 Pos;
     XMFLOAT4 Color;
 };
@@ -26,7 +27,8 @@ struct Vertex
 // 绘制物体所用对象的常量数据
 struct ObjectConstants
 {
-    XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();   // 初始化为 4x4 的单位矩阵
+    XMFLOAT4X4 WorldViewProj0 = MathHelper::Identity4x4();   // 初始化为 4x4 的单位矩阵
+    XMFLOAT4X4 WorldViewProj1 = MathHelper::Identity4x4();   // 初始化为 4x4 的单位矩阵, for pyramid
     float Time = 0.0f;
 };
 
@@ -80,7 +82,7 @@ private:
     float mPhi = XM_PIDIV4;
     float mRadius = 4.0f;   // 原版为 5
 
-    POINT mLastMousePos;
+    POINT mLastMousePos = {};
 };
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
@@ -191,12 +193,14 @@ void BoxApp::Update(const GameTimer& gt)
 
     XMMATRIX world = XMLoadFloat4x4(&mWorld);
     XMMATRIX proj = XMLoadFloat4x4(&mProj);
-    XMMATRIX worldViewProj = world*view*proj;   // 世界-观察-投影
+    XMMATRIX worldViewProjBox = world*view*proj;   // 世界-观察-投影
+    XMMATRIX worldViewProjPyramid = world* XMMatrixTranslation(2.0f,0.0f,0.0f) * view * proj;   // 世界(加个平移)-观察-投影
 
 	// Update the constant buffer with the latest worldViewProj matrix.
     // 用最新的 worldViewProj 矩阵来更新常量区
 	ObjectConstants objConstants;
-    XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
+    XMStoreFloat4x4(&objConstants.WorldViewProj0, XMMatrixTranspose(worldViewProjBox));
+    XMStoreFloat4x4(&objConstants.WorldViewProj1, XMMatrixTranspose(worldViewProjPyramid));
     objConstants.Time = gt.TotalTime();
     mObjectCB->CopyData(0, objConstants);
 }
@@ -542,9 +546,9 @@ void BoxApp::BuildShadersAndInputLayout()
 
     mInputLayout =
     {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-        //{ "INDEX", 0, DXGI_FORMAT_R32_UINT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "INDEX", 0, DXGI_FORMAT_R32_UINT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
 }
 
@@ -553,21 +557,21 @@ void BoxApp::BuildBoxGeometry()
     // 创建存有立方体 8 个顶点的默认缓冲区，并为每个顶点赋予不同的颜色
     std::array<Vertex, 8 + 5> vertices =
     {
-        Vertex({ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::White) }),
-		Vertex({ XMFLOAT3(-0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Black) }),
-		Vertex({ XMFLOAT3(+0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Red) }),
-		Vertex({ XMFLOAT3(+0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::Green) }),
-		Vertex({ XMFLOAT3(-0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Blue) }),
-		Vertex({ XMFLOAT3(-0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Yellow) }),
-		Vertex({ XMFLOAT3(+0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Cyan) }),
-		Vertex({ XMFLOAT3(+0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Magenta) }),
+        Vertex({0, XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::White) }),
+		Vertex({0, XMFLOAT3(-0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Black) }),
+		Vertex({0, XMFLOAT3(+0.5f, +0.5f, -0.5f), XMFLOAT4(Colors::Red) }),
+		Vertex({0, XMFLOAT3(+0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::Green) }),
+		Vertex({0, XMFLOAT3(-0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Blue) }),
+		Vertex({0, XMFLOAT3(-0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Yellow) }),
+		Vertex({0, XMFLOAT3(+0.5f, +0.5f, +0.5f), XMFLOAT4(Colors::Cyan) }),
+		Vertex({0, XMFLOAT3(+0.5f, -0.5f, +0.5f), XMFLOAT4(Colors::Magenta) }),
 
         // pyramid
-        Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
-        Vertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
-        Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Green) }),
-        Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Green) }),
-        Vertex({ XMFLOAT3(0.0f, 1.5f, 0.0f), XMFLOAT4(Colors::Red) })
+        Vertex({1, XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({1, XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({1, XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({1, XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Green) }),
+        Vertex({1, XMFLOAT3(0.0f, 1.5f, 0.0f), XMFLOAT4(Colors::Red) })
     };
 
     // 顶点索引数组（以默认时针绘制三角形）

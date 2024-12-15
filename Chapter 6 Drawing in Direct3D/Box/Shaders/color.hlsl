@@ -10,7 +10,8 @@
 //		除了b 外， 还有 t（着色器资源视图）、s（采样器）、u（无序访问视图）
 cbuffer cbPerObject : register(b0)
 {
-	float4x4 gWorldViewProj;	// 4x4 矩阵
+	float4x4 gWorldViewProj0;	// 4x4 矩阵
+	float4x4 gWorldViewProj1;	// 4x4 矩阵
 	
     float gTime;
 	
@@ -24,9 +25,9 @@ cbuffer cbPerObject : register(b0)
 
 struct VertexIn
 {
+    uint Index	 : INDEX;
 	float3 PosL  : POSITION;
     float4 Color : COLOR;
-//    uint Index	 : INDEX;
 };
 
 struct VertexOut
@@ -47,7 +48,14 @@ VertexOut VS(VertexIn vin)
 	// 把顶点 变换到齐次裁剪空间
 	// gWorldViewProj 为 4x4 矩阵
 	// 1.0f 表示点， 0表示向量（齐次坐标）
-	vout.PosH = mul(float4(vin.PosL, 1.0f), gWorldViewProj);
+    if (vin.Index == 0)
+    {
+		vout.PosH = mul(float4(vin.PosL, 1.0f), gWorldViewProj0);
+    }
+    else
+    {
+		vout.PosH = mul(float4(vin.PosL, 1.0f), gWorldViewProj1);
+    }
 	
 	// Just pass vertex color into the pixel shader.
     vout.Color = vin.Color;
