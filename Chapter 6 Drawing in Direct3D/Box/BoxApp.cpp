@@ -29,6 +29,7 @@ struct Vertex
 struct ObjectConstants
 {
     XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();   // 初始化为 4x4 的单位矩阵
+    float Time;
 };
 
 class BoxApp : public D3DApp
@@ -206,6 +207,7 @@ static float angle = 0.00f;   // not a good idea, use GameTimer may be better
     // 用最新的 worldViewProj 矩阵来更新常量区
 	ObjectConstants objConstants;
     XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
+    objConstants.Time = gt.TotalTime();
 
     mObjectCB->CopyData(0, objConstants);
 }
@@ -242,7 +244,7 @@ void BoxApp::Draw(const GameTimer& gt)
         用途：优化性能，避免对屏幕上不需要渲染的区域进行不必要的计算和绘制
             实现特定的渲染效果，如分屏显示、窗口特效等。
     */
-    mCommandList->RSSetScissorRects(1, &mScissorRect);
+    mCommandList->RSSetScissorRects(1, &mScissorRect); 
 
     // Indicate a state transition on the resource usage.
     // 将当前后缓冲区的状态从呈现状态转换为渲染目标状态
