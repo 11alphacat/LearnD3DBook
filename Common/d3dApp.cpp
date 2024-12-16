@@ -253,7 +253,12 @@ void D3DApp::OnResize()
 	mScreenViewport.MaxDepth = 1.0f;
 
 	// 10. 设置裁剪矩形（scissor rectangle，初始化结构体，在 Draw 函数中使用）
-    mScissorRect = { 0, 0, mClientWidth, mClientHeight };
+	//mScissorRect = { 0, 0, mClientWidth, mClientHeight };
+	// 剔除后台缓冲区中心宽为 mClientWidth/2 ,高为 mClientHeight/2 这一矩形以外的像素
+	mScissorRect.left = static_cast<float>(mClientWidth >> 2);
+	mScissorRect.top = static_cast<float>(mClientHeight >> 2);
+	mScissorRect.right = static_cast<float>(mClientWidth * 3 / 4);
+	mScissorRect.bottom = static_cast<float>(mClientHeight * 3 / 4);
 }
  
 LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
