@@ -12,6 +12,7 @@
 #include "../../Common/MathHelper.h"
 #include "../../Common/UploadBuffer.h"
 
+#include <Windows.h>
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
@@ -20,6 +21,7 @@ struct Vertex
 {
     XMFLOAT3 Pos;
     XMFLOAT4 Color;
+    //XMCOLOR Color;
 };
 
 // 常量对象结构体
@@ -190,12 +192,21 @@ void BoxApp::Update(const GameTimer& gt)
 
     XMMATRIX world = XMLoadFloat4x4(&mWorld);
     XMMATRIX proj = XMLoadFloat4x4(&mProj);
-    XMMATRIX worldViewProj = world*view*proj;   // 世界-观察-投影
+    //XMMATRIX worldViewProj = world*view*proj;   // 世界-观察-投影
+
+    // 绕 Y 轴旋转矩阵
+static float angle = 0.00f;   // not a good idea, use GameTimer may be better
+    
+    XMMATRIX rotationY = XMMatrixRotationY(angle);
+    angle = (angle > 180.0f) ? 0.0f : angle + 0.01f;
+
+    XMMATRIX worldViewProj = world * rotationY * view * proj;   // 世界-观察-投影
 
 	// Update the constant buffer with the latest worldViewProj matrix.
     // 用最新的 worldViewProj 矩阵来更新常量区
 	ObjectConstants objConstants;
     XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
+
     mObjectCB->CopyData(0, objConstants);
 }
 
@@ -525,13 +536,15 @@ void BoxApp::BuildShadersAndInputLayout()
     mInputLayout =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        //{ "COLOR", 0, DXGI_FORMAT_B8G8R8A8_UNORM, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
 }
 
 void BoxApp::BuildBoxGeometry()
 {
     // 创建存有立方体 8 个顶点的默认缓冲区，并为每个顶点赋予不同的颜色
+    
     std::array<Vertex, 8> vertices =
     {
         Vertex({ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT4(Colors::White) }),
@@ -637,7 +650,13 @@ void BoxApp::BuildPSO()
 		reinterpret_cast<BYTE*>(mpsByteCode->GetBufferPointer()), 
 		mpsByteCode->GetBufferSize() 
 	};
-    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    //psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    D3D12_RASTERIZER_DESC rsDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    //rsDesc.FillMode = D3D12_FILL_MODE_WIREFRAME;    // 线框模式渲染立方体
+    ////rsDesc.CullMode = D3D12_CULL_MODE_NONE;         // 禁用背面剔除
+    //rsDesc.CullMode = D3D12_CULL_MODE_FRONT;         // 正面剔除
+
+    psoDesc.RasterizerState = rsDesc;
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     psoDesc.SampleMask = UINT_MAX;

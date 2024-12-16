@@ -247,8 +247,8 @@ void D3DApp::OnResize()
 	// 9. 设置视口（初始化结构体，在 Draw 函数中使用）
 	mScreenViewport.TopLeftX = 0;
 	mScreenViewport.TopLeftY = 0;
-	mScreenViewport.Width    = static_cast<float>(mClientWidth);
-	mScreenViewport.Height   = static_cast<float>(mClientHeight/2);	// 
+	mScreenViewport.Width    = static_cast<float>(mClientWidth);		// 可用于分屏
+	mScreenViewport.Height   = static_cast<float>(mClientHeight);	 
 	mScreenViewport.MinDepth = 0.0f;
 	mScreenViewport.MaxDepth = 1.0f;
 
@@ -639,10 +639,12 @@ void D3DApp::CalculateFrameStats()
 
         wstring fpsStr = std::to_wstring(fps);
         wstring mspfStr = std::to_wstring(mspf);
+		wstring timeStr = std::to_wstring(mTimer.TotalTime());
 
         wstring windowText = mMainWndCaption +
             L"    fps: " + fpsStr +
-            L"   mspf: " + mspfStr;
+            L"   mspf: " + mspfStr +
+			L"   time: " + timeStr;
 
         SetWindowText(mhMainWnd, windowText.c_str());
 		
