@@ -12,6 +12,7 @@ cbuffer cbPerObject : register(b0)
 {
 	float4x4 gWorldViewProj;	// 4x4 矩阵
 	
+    float4 gPulseColor;
     float gTime;
 	// 这里手动显示填充一下
 //    float4x4 _Pad0;
@@ -54,7 +55,24 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    return pin.Color;
+	/* 14 */
+//   const float pi = 3.14159;
+//   float s = 0.5f * sin(2 * gTime - 0.25f * pi) + 0.5f;
+//   float4 c = pin.Color * s;
+//	
+//   return c;
+	
+	/* 15 */
+//    clip(pin.Color.r - 0.5f);
+//    return pin.Color;
+	
+	/* 16 */
+	const float pi = 3.14159;
+	float s = 0.5f * sin(2 * gTime - 0.25f * pi) + 0.5f;	// s ∈ [0,1]
+    float4 c = lerp(pin.Color, gPulseColor, s);	// 线性插值
+
+	return c;
+    //return pin.Color;
 }
 
 

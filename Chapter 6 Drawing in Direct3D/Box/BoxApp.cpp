@@ -29,7 +29,8 @@ struct Vertex
 struct ObjectConstants
 {
     XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();   // 初始化为 4x4 的单位矩阵
-    float Time;
+    XMFLOAT4 PulseColor = XMFLOAT4(Colors::White);
+    float Time = 0.0f;
 };
 
 class BoxApp : public D3DApp
@@ -208,6 +209,7 @@ static float angle = 0.00f;   // not a good idea, use GameTimer may be better
 	ObjectConstants objConstants;
     XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
     objConstants.Time = gt.TotalTime();
+    // objConstants.PulseColor = ;
 
     mObjectCB->CopyData(0, objConstants);
 }
