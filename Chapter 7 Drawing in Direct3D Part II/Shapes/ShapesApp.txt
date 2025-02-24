@@ -1,0 +1,81 @@
+====ShapesApp的初始化ShapesApp::Initialize()====
+
+ShapesApp::BuildRootSignature()	// 构建根签名
+	D3D12SerializeRootSignature(...)
+	md3dDevice->CreateRootSignature(...)
+
+ShapesApp::BuildShadersAndInputLayout()	// 构建着色器和输入布局
+	着色器编译
+	填写 mInputLayout D3D12_INPUT_ELEMENT_DESC结构体
+
+ShapesApp::BuildShapeGeometry()	// 构建形体网格
+	CreateBox(...)
+	CreateGrid(...)	
+	D3DCreateBlob(...)			// for **BufferCPU
+	d3dUtil::CreateDefaultBuffer(...)	// for **BufferGPU
+
+ShapesApp::BuildRenderItems()	// 构建渲染项
+	/*
+渲染项结构体包含了网格，世界矩阵，图元拓扑，实例绘制相关参数等
+	*/
+
+ShapesApp::BuildFrameResources() 	// 构建帧资源
+	/*
+帧资源结构体包含命令分配器，物体常量缓冲区和渲染过程常量缓冲区等
+	*/
+
+ShapesApp::BuildDescriptorHeaps()	// 构建描述符堆
+	md3dDevice->CreateDescriptorHeap(...) 创建常量缓冲区描述符堆
+
+ShapesApp::BuildConstantBufferViews()	 // 构建常量缓冲区视图
+	// 先敲定总共需要多少描述符，创建好了堆
+	// 然后再申请每个描述符对应的缓冲区资源 
+	md3dDevice->CreateConstantBufferView(...)
+
+ShapesApp::BuildPSOs()		// 构建PSO
+	// 多个渲染项可共用一个 PSO
+	// 从状态机的视角，渲染的过程是从一个PSO到另一个PSO
+	一个D3D12_GRAPHICS_PIPELINE_STATE_DESC 结构体主要包括{
+	输入布局（Input Layout），顶点着色器（Vertex Shader），
+	像素着色器（Pixel Shader），图元拓扑（Primitive Topology）
+	根签名（RootSignature）
+	深度模板状态（Depth-Stencil State）、混合状态（Blend State）
+	渲染目标格式（Render Target Formats）、样本状态（Sample State）
+	md3dDevice->CreateGraphicsPipelineState(...)
+
+mCommandQueue->ExecuteCommandLists(...) // 执行初始化的命令
+
+D3DApp::FlushCommandQueue()	// 同步一下
+
+return true;
+
+
+
+====ShapesApp的绘制ShapesApp::Draw(const GameTimer& gt)====
+命令列表 Reset
+
+mCommandList->RSSetViewports(...)	// 设置视点
+mCommandList->RSSetScissorRects()	// 设置裁剪区域
+
+mCommandList->ResourceBarrier(
+	.,&CD3DX12_RESOURCE_BARRIER::Transition(...)
+	)	// 资源状态转换，当前帧从 present 转为 render target
+
+mCommandList->ClearRenderTargetView(...)  // 清屏
+mCommandList->ClearDepthStencilView(...)   // 清除深度缓冲
+
+mCommandList->OMSetRenderTargets(...)    // 指定要渲染的缓冲区 
+mCommandList->SetDescriptorHeaps(...) // 设置（常量缓冲区）描述符堆
+
+mCommandList->SetGraphicsRootSignature(...) // 设置根签名
+mCommandList->SetGraphicsRootDescriptorTable(...) // 设置根描述符表
+
+ShapesApp::DrawRenderItems(...)	
+	对每一个渲染项执行 {
+	cmdList->IASetVertexBuffers(...) // 设置顶点缓冲,IA是输入装配器
+	cmdList->IASetIndexBuffer(...)    // 设置索引缓冲
+	cmdList->IASetPrimitiveTopology(...) // 设置图元拓扑
+	cmdList->SetGraphicsRootDescriptorTable(...) // 设置根描述符表
+	cmdList->DrawIndexedInstanced(...)	// 绘制实例
+	
+mCommandList->ResourceBarrier(...) // 资源状态转换，当前帧从render target 转为 present
