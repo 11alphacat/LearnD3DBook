@@ -46,6 +46,7 @@ public:
 
     // We cannot reset the allocator until the GPU is done processing the commands.
     // So each frame needs their own allocator.
+    // 每一帧都有自己的命令分配器
     Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CmdListAlloc;
 
     // We cannot update a cbuffer until the GPU is done processing the commands

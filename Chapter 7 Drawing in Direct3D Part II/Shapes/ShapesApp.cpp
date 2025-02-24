@@ -113,7 +113,7 @@ private:
 	XMFLOAT3 mEyePos = { 0.0f, 0.0f, 0.0f };
 	XMFLOAT4X4 mView = MathHelper::Identity4x4();
 	XMFLOAT4X4 mProj = MathHelper::Identity4x4();
-
+     
     float mTheta = 1.5f*XM_PI;
     float mPhi = 0.2f*XM_PI;
     float mRadius = 15.0f;
@@ -405,10 +405,10 @@ void ShapesApp::UpdateMainPassCB(const GameTimer& gt)
 
 void ShapesApp::BuildDescriptorHeaps()
 {
-    UINT objCount = (UINT)mOpaqueRitems.size();
+    UINT objCount = (UINT)mOpaqueRitems.size(); // 22 个
 
     // Need a CBV descriptor for each object for each frame resource,
-    // +1 for the perPass CBV for each frame resource.
+    // +1 for the perPass CBV for each frame resource.  每帧需要1个过程常量缓冲区
     UINT numDescriptors = (objCount+1) * gNumFrameResources;
 
     // Save an offset to the start of the pass CBVs.  These are the last 3 descriptors.
@@ -430,6 +430,7 @@ void ShapesApp::BuildConstantBufferViews()
     UINT objCount = (UINT)mOpaqueRitems.size();
 
     // Need a CBV descriptor for each object for each frame resource.
+    // 当前使用 3 个帧资源，每帧 n 个渲染项，于是有 3n 个物体常量缓冲区
     for(int frameIndex = 0; frameIndex < gNumFrameResources; ++frameIndex)
     {
         auto objectCB = mFrameResources[frameIndex]->ObjectCB->Resource();
@@ -442,7 +443,7 @@ void ShapesApp::BuildConstantBufferViews()
 
             // Offset to the object cbv in the descriptor heap.
             int heapIndex = frameIndex*objCount + i;
-            auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvHeap->GetCPUDescriptorHandleForHeapStart());
+            auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvHeap->GetCPUDescriptorHandleForHeapStart()); // 获取堆中第一个描述符句柄
             handle.Offset(heapIndex, mCbvSrvUavDescriptorSize);
 
             D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
@@ -456,6 +457,7 @@ void ShapesApp::BuildConstantBufferViews()
     UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
     // Last three descriptors are the pass CBVs for each frame resource.
+    // 3 个渲染过程常量缓冲区，不用双重 for 循环
     for(int frameIndex = 0; frameIndex < gNumFrameResources; ++frameIndex)
     {
         auto passCB = mFrameResources[frameIndex]->PassCB->Resource();
@@ -529,21 +531,21 @@ void ShapesApp::BuildShapeGeometry()
     GeometryGenerator geoGen;
 	GeometryGenerator::MeshData box = geoGen.CreateBox(1.5f, 0.5f, 1.5f, 3);
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 30.0f, 60, 40);
-	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 20, 20);
+	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 10, 10);
 	GeometryGenerator::MeshData cylinder = geoGen.CreateCylinder(0.5f, 0.3f, 3.0f, 20, 20);
 
 	//
 	// We are concatenating all the geometry into one big vertex/index buffer.  So
 	// define the regions in the buffer each submesh covers.
-	//
-
-	// Cache the vertex offsets to each object in the concatenated vertex buffer.
+	// 将所有几何体数据都合并到一个大的顶点/索引缓冲区
+     
+	// Cache the vertex offsets to each object in the concatenated vertex buffer. 缓存顶点偏移
 	UINT boxVertexOffset = 0;
 	UINT gridVertexOffset = (UINT)box.Vertices.size();
 	UINT sphereVertexOffset = gridVertexOffset + (UINT)grid.Vertices.size();
 	UINT cylinderVertexOffset = sphereVertexOffset + (UINT)sphere.Vertices.size();
 
-	// Cache the starting index for each object in the concatenated index buffer.
+	// Cache the starting index for each object in the concatenated index buffer. 缓存索引偏移
 	UINT boxIndexOffset = 0;
 	UINT gridIndexOffset = (UINT)box.Indices32.size();
 	UINT sphereIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
@@ -583,34 +585,34 @@ void ShapesApp::BuildShapeGeometry()
 		sphere.Vertices.size() +
 		cylinder.Vertices.size();
 
-	std::vector<Vertex> vertices(totalVertexCount);
+	std::vector<Vertex> vertices(totalVertexCount); // 顶点集合
 
 	UINT k = 0;
 	for(size_t i = 0; i < box.Vertices.size(); ++i, ++k)
 	{
 		vertices[k].Pos = box.Vertices[i].Position;
-        vertices[k].Color = XMFLOAT4(DirectX::Colors::DarkGreen);
+        vertices[k].Color = XMFLOAT4(DirectX::Colors::AliceBlue);   // 中间那个
 	}
 
 	for(size_t i = 0; i < grid.Vertices.size(); ++i, ++k)
 	{
 		vertices[k].Pos = grid.Vertices[i].Position;
-        vertices[k].Color = XMFLOAT4(DirectX::Colors::ForestGreen);
+        vertices[k].Color = XMFLOAT4(DirectX::Colors::Aqua);        // 地板网格
 	}
 
 	for(size_t i = 0; i < sphere.Vertices.size(); ++i, ++k)
 	{
 		vertices[k].Pos = sphere.Vertices[i].Position;
-        vertices[k].Color = XMFLOAT4(DirectX::Colors::Crimson);
+        vertices[k].Color = XMFLOAT4(DirectX::Colors::Crimson);     // 10个球
 	}
 
 	for(size_t i = 0; i < cylinder.Vertices.size(); ++i, ++k)
 	{
 		vertices[k].Pos = cylinder.Vertices[i].Position;
-		vertices[k].Color = XMFLOAT4(DirectX::Colors::SteelBlue);
+		vertices[k].Color = XMFLOAT4(DirectX::Colors::DarkViolet);        // 10根柱子
 	}
 
-	std::vector<std::uint16_t> indices;
+	std::vector<std::uint16_t> indices; // 索引集合
 	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
 	indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
 	indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
@@ -639,12 +641,13 @@ void ShapesApp::BuildShapeGeometry()
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
 
+    // 添加子网格
 	geo->DrawArgs["box"] = boxSubmesh;
 	geo->DrawArgs["grid"] = gridSubmesh;
 	geo->DrawArgs["sphere"] = sphereSubmesh;
 	geo->DrawArgs["cylinder"] = cylinderSubmesh;
 
-	mGeometries[geo->Name] = std::move(geo);
+	mGeometries[geo->Name] = std::move(geo); // move 将 unique_ptr geo 的所有权转移到 mGeometries 中
 }
 
 void ShapesApp::BuildPSOs()
@@ -722,11 +725,11 @@ void ShapesApp::BuildRenderItems()
 	mAllRitems.push_back(std::move(gridRitem));
 
 	UINT objCBIndex = 2;
-	for(int i = 0; i < 5; ++i)
+	for(int i = 0; i != 5; ++i)
 	{
-		auto leftCylRitem = std::make_unique<RenderItem>();
+		auto leftCylRitem = std::make_unique<RenderItem>(); // 左侧一列柱
 		auto rightCylRitem = std::make_unique<RenderItem>();
-		auto leftSphereRitem = std::make_unique<RenderItem>();
+		auto leftSphereRitem = std::make_unique<RenderItem>(); // 左侧一串球
 		auto rightSphereRitem = std::make_unique<RenderItem>();
 
 		XMMATRIX leftCylWorld = XMMatrixTranslation(-5.0f, 1.5f, -10.0f + i*5.0f);
@@ -773,9 +776,9 @@ void ShapesApp::BuildRenderItems()
 		mAllRitems.push_back(std::move(rightSphereRitem));
 	}
 
-	// All the render items are opaque.
+	// All the render items are opaque. 非透明
 	for(auto& e : mAllRitems)
-		mOpaqueRitems.push_back(e.get());
+		mOpaqueRitems.push_back(e.get());   // 要注意指针对象的生命周期
 }
 
 void ShapesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
@@ -785,7 +788,7 @@ void ShapesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::v
 	auto objectCB = mCurrFrameResource->ObjectCB->Resource();
 
     // For each render item...
-    for(size_t i = 0; i < ritems.size(); ++i)
+    for(size_t i = 0; i != ritems.size(); ++i)
     {
         auto ri = ritems[i];
 

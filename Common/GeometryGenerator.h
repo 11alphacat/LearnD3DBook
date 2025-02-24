@@ -56,7 +56,7 @@ public:
 	struct MeshData
 	{
 		std::vector<Vertex> Vertices;
-        std::vector<uint32> Indices32;
+        std::vector<uint32> Indices32;		// 为什么不直接在这里就用 uint16 ?
 
         std::vector<uint16>& GetIndices16()
         {

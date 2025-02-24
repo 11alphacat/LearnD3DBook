@@ -132,20 +132,22 @@ GeometryGenerator::MeshData GeometryGenerator::CreateSphere(float radius, uint32
 			Vertex v;
 
 			// spherical to cartesian
+			// 球面坐标转笛卡尔坐标，基操
 			v.Position.x = radius*sinf(phi)*cosf(theta);
 			v.Position.y = radius*cosf(phi);
 			v.Position.z = radius*sinf(phi)*sinf(theta);
 
 			// Partial derivative of P with respect to theta
+			// 切向量分量为坐标对theta的偏导数
 			v.TangentU.x = -radius*sinf(phi)*sinf(theta);
 			v.TangentU.y = 0.0f;
 			v.TangentU.z = +radius*sinf(phi)*cosf(theta);
 
 			XMVECTOR T = XMLoadFloat3(&v.TangentU);
-			XMStoreFloat3(&v.TangentU, XMVector3Normalize(T));
+			XMStoreFloat3(&v.TangentU, XMVector3Normalize(T));	// 单位化切向量
 
 			XMVECTOR p = XMLoadFloat3(&v.Position);
-			XMStoreFloat3(&v.Normal, XMVector3Normalize(p));
+			XMStoreFloat3(&v.Normal, XMVector3Normalize(p));	// 这里位置向量也单位化了
 
 			v.TexC.x = theta / XM_2PI;
 			v.TexC.y = phi / XM_PI;
@@ -230,7 +232,7 @@ void GeometryGenerator::Subdivide(MeshData& meshData)
 	// *-----*-----*
 	// v0    m2     v2
 
-	uint32 numTris = (uint32)inputCopy.Indices32.size()/3;
+	uint32 numTris = (uint32)inputCopy.Indices32.size()/3;	// 索引数组长度除以 3，得到三角形数量
 	for(uint32 i = 0; i < numTris; ++i)
 	{
 		Vertex v0 = inputCopy.Vertices[ inputCopy.Indices32[i*3+0] ];
@@ -248,14 +250,15 @@ void GeometryGenerator::Subdivide(MeshData& meshData)
 		//
 		// Add new geometry.
 		//
-
+		// 新的顶点
 		meshData.Vertices.push_back(v0); // 0
 		meshData.Vertices.push_back(v1); // 1
 		meshData.Vertices.push_back(v2); // 2
 		meshData.Vertices.push_back(m0); // 3
 		meshData.Vertices.push_back(m1); // 4
 		meshData.Vertices.push_back(m2); // 5
- 
+	
+		// 新的三角形索引顶点
 		meshData.Indices32.push_back(i*6+0);
 		meshData.Indices32.push_back(i*6+3);
 		meshData.Indices32.push_back(i*6+5);
@@ -308,14 +311,15 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGeosphere(float radius, uin
 {
     MeshData meshData;
 
-	// Put a cap on the number of subdivisions.
+	// Put a cap on the number of subdivisions.	确定细分的次数
     numSubdivisions = std::min<uint32>(numSubdivisions, 6u);
 
-	// Approximate a sphere by tessellating an icosahedron.
+	// Approximate a sphere by tessellating an icosahedron. 对正二十面体进行曲面细分
 
 	const float X = 0.525731f; 
 	const float Z = 0.850651f;
-
+	
+	// 正二十面体有 12 个顶点，其坐标与黄金分割比有关
 	XMFLOAT3 pos[12] = 
 	{
 		XMFLOAT3(-X, 0.0f, Z),  XMFLOAT3(X, 0.0f, Z),  
@@ -326,6 +330,7 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGeosphere(float radius, uin
 		XMFLOAT3(Z, -X, 0.0f),  XMFLOAT3(-Z, -X, 0.0f)
 	};
 
+	// 20个三角形的索引坐标为20*3=60个
     uint32 k[60] =
 	{
 		1,4,0,  4,9,0,  4,5,9,  8,5,4,  1,8,4,    
@@ -340,32 +345,32 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGeosphere(float radius, uin
 	for(uint32 i = 0; i < 12; ++i)
 		meshData.Vertices[i].Position = pos[i];
 
-	for(uint32 i = 0; i < numSubdivisions; ++i)
+	for(uint32 i = 0; i < numSubdivisions; ++i)	// 开始曲面细分
 		Subdivide(meshData);
 
 	// Project vertices onto sphere and scale.
-	for(uint32 i = 0; i < meshData.Vertices.size(); ++i)
+	for(uint32 i = 0; i < meshData.Vertices.size(); ++i) 
 	{
 		// Project onto unit sphere.
 		XMVECTOR n = XMVector3Normalize(XMLoadFloat3(&meshData.Vertices[i].Position));
 
 		// Project onto sphere.
 		XMVECTOR p = radius*n;
-
+		  
 		XMStoreFloat3(&meshData.Vertices[i].Position, p);
 		XMStoreFloat3(&meshData.Vertices[i].Normal, n);
 
 		// Derive texture coordinates from spherical coordinates.
-        float theta = atan2f(meshData.Vertices[i].Position.z, meshData.Vertices[i].Position.x);
+        float theta = atan2f(meshData.Vertices[i].Position.z, meshData.Vertices[i].Position.x); // 方位角，x-z平面
 
         // Put in [0, 2pi].
         if(theta < 0.0f)
             theta += XM_2PI;
 
-		float phi = acosf(meshData.Vertices[i].Position.y / radius);
+		float phi = acosf(meshData.Vertices[i].Position.y / radius);	// 与y轴正向夹角，范围[0,Π]
 
-		meshData.Vertices[i].TexC.x = theta/XM_2PI;
-		meshData.Vertices[i].TexC.y = phi/XM_PI;
+		meshData.Vertices[i].TexC.x = theta/XM_2PI;	// ==> [0,1]
+		meshData.Vertices[i].TexC.y = phi/XM_PI; // ==> [0,1]
 
 		// Partial derivative of P with respect to theta
 		meshData.Vertices[i].TangentU.x = -radius*sinf(phi)*sinf(theta);
@@ -385,28 +390,32 @@ GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius
 
 	//
 	// Build Stacks.
+	// 构建堆叠层
 	// 
 
-	float stackHeight = height / stackCount;
+	float stackHeight = height / stackCount;	// 每层的高度， Δh
 
 	// Amount to increment radius as we move up each stack level from bottom to top.
+	// 计算从下至上遍历每个相邻分层所需的半径增量，即相邻环的半径差 Δr
 	float radiusStep = (topRadius - bottomRadius) / stackCount;
 
 	uint32 ringCount = stackCount+1;
 
 	// Compute vertices for each stack ring starting at the bottom and moving up.
+	// 从底面开始，由下至上计算每个对叠层环上的顶点坐标
 	for(uint32 i = 0; i < ringCount; ++i)
 	{
-		float y = -0.5f*height + i*stackHeight;
-		float r = bottomRadius + i*radiusStep;
+		float y = -0.5f*height + i*stackHeight;	// 第 i 环的高度为 -0.5h + i*Δh(因为假定中心点为原点)
+		float r = bottomRadius + i*radiusStep;	// 第 i 环的半径为 底面半径 + i*Δr
 
 		// vertices of ring
-		float dTheta = 2.0f*XM_PI/sliceCount;
+		// 环上的各个顶点
+		float dTheta = 2.0f*XM_PI/sliceCount;	// 俯视时，切片的夹角弧度
 		for(uint32 j = 0; j <= sliceCount; ++j)
 		{
 			Vertex vertex;
 
-			float c = cosf(j*dTheta);
+			float c = cosf(j*dTheta);		// 三角函数值
 			float s = sinf(j*dTheta);
 
 			vertex.Position = XMFLOAT3(r*c, y, r*s);
@@ -434,14 +443,15 @@ GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius
 			//  dz/dv = (r0-r1)*sin(t)
 
 			// This is unit length.
-			vertex.TangentU = XMFLOAT3(-s, 0.0f, c);
+			// 单位长度
+			vertex.TangentU = XMFLOAT3(-s, 0.0f, c);	// 该点所在环的单位切向量，对坐标向量求导可得
 
 			float dr = bottomRadius-topRadius;
-			XMFLOAT3 bitangent(dr*c, -height, dr*s);
+			XMFLOAT3 bitangent(dr*c, -height, dr*s);	// 副切线方向（当为锥体时即为锥体顶点向该点的连线）
 
 			XMVECTOR T = XMLoadFloat3(&vertex.TangentU);
 			XMVECTOR B = XMLoadFloat3(&bitangent);
-			XMVECTOR N = XMVector3Normalize(XMVector3Cross(T, B));
+			XMVECTOR N = XMVector3Normalize(XMVector3Cross(T, B));	// 两向量叉乘后单位化，得到该点的法向量
 			XMStoreFloat3(&vertex.Normal, N);
 
 			meshData.Vertices.push_back(vertex);
@@ -450,17 +460,21 @@ GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius
 
 	// Add one because we duplicate the first and last vertex per ring
 	// since the texture coordinates are different.
+	// 加一是希望让环的每一个顶点和最后一个顶点重合，因为它们的纹理坐标不同
 	uint32 ringVertexCount = sliceCount+1;
 
 	// Compute indices for each stack.
-	for(uint32 i = 0; i < stackCount; ++i)
+	// 计算每个侧面块中三角形的索引
+	for(uint32 i = 0; i < stackCount; ++i)			// 第 i 层 
 	{
-		for(uint32 j = 0; j < sliceCount; ++j)
+		for(uint32 j = 0; j < sliceCount; ++j)		// 第 j 个切片
 		{
+			// ▲1 三个点索引（i*n + j, (i+1)*n + j, (i+1)*n + j + 1） 
 			meshData.Indices32.push_back(i*ringVertexCount + j);
 			meshData.Indices32.push_back((i+1)*ringVertexCount + j);
 			meshData.Indices32.push_back((i+1)*ringVertexCount + j+1);
 
+			// ▲2 三个点索引（i*n + j, (i+1)*n + j + 1, i*n + j + 1） 
 			meshData.Indices32.push_back(i*ringVertexCount + j);
 			meshData.Indices32.push_back((i+1)*ringVertexCount + j+1);
 			meshData.Indices32.push_back(i*ringVertexCount + j+1);
@@ -476,12 +490,13 @@ GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius
 void GeometryGenerator::BuildCylinderTopCap(float bottomRadius, float topRadius, float height,
 											uint32 sliceCount, uint32 stackCount, MeshData& meshData)
 {
-	uint32 baseIndex = (uint32)meshData.Vertices.size();
+	uint32 baseIndex = (uint32)meshData.Vertices.size();	
 
 	float y = 0.5f*height;
-	float dTheta = 2.0f*XM_PI/sliceCount;
+	float dTheta = 2.0f*XM_PI/sliceCount;	// 切片间的夹角弧度
 
 	// Duplicate cap ring vertices because the texture coordinates and normals differ.
+	// 使圆台端面环上的首尾顶点重合，因为这两个顶点的纹理坐标和法线是不同的
 	for(uint32 i = 0; i <= sliceCount; ++i)
 	{
 		float x = topRadius*cosf(i*dTheta);
@@ -489,16 +504,20 @@ void GeometryGenerator::BuildCylinderTopCap(float bottomRadius, float topRadius,
 
 		// Scale down by the height to try and make top cap texture coord area
 		// proportional to base.
+		// 根据圆台的高度使顶面纹理坐标的范围按比例缩小
 		float u = x/height + 0.5f;
 		float v = z/height + 0.5f;
 
+		// 此构造函数一次囊括位置向量、法向量、切向量和纹理坐标
 		meshData.Vertices.push_back( Vertex(x, y, z, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, u, v) );
 	}
 
 	// Cap center vertex.
+	// 顶面的中心顶点
 	meshData.Vertices.push_back( Vertex(0.0f, y, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 0.5f) );
 
 	// Index of center vertex.
+	// 中心顶点的索引值
 	uint32 centerIndex = (uint32)meshData.Vertices.size()-1;
 
 	for(uint32 i = 0; i < sliceCount; ++i)
