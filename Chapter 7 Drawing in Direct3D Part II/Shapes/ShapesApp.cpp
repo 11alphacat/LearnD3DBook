@@ -249,16 +249,16 @@ void ShapesApp::Draw(const GameTimer& gt)
     mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
     ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvHeap.Get() };
-    mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+    mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);   // 设置描述符堆
 
-	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
+	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());   // 设置根签名
 
     int passCbvIndex = mPassCbvOffset + mCurrFrameResourceIndex;
     auto passCbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
     passCbvHandle.Offset(passCbvIndex, mCbvSrvUavDescriptorSize);
-    mCommandList->SetGraphicsRootDescriptorTable(1, passCbvHandle);
+    mCommandList->SetGraphicsRootDescriptorTable(1, passCbvHandle); // 设置过程常量的根描述符表
 
-    DrawRenderItems(mCommandList.Get(), mOpaqueRitems);
+    DrawRenderItems(mCommandList.Get(), mOpaqueRitems); 
 
     // Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -281,7 +281,7 @@ void ShapesApp::Draw(const GameTimer& gt)
     // Add an instruction to the command queue to set a new fence point. 
     // Because we are on the GPU timeline, the new fence point won't be 
     // set until the GPU finishes processing all the commands prior to this Signal().
-    mCommandQueue->Signal(mFence.Get(), mCurrentFence);
+    mCommandQueue->Signal(mFence.Get(), mCurrentFence); // 通知已渲染完当前帧
 }
 
 void ShapesApp::OnMouseDown(WPARAM btnState, int x, int y)
@@ -403,12 +403,16 @@ void ShapesApp::UpdateMainPassCB(const GameTimer& gt)
 	currPassCB->CopyData(0, mMainPassCB);
 }
 
+// ------------------------------- 构建描述符堆 --------------------------------
+// 1. 创建描述符堆的描述符结构 struct D3D12_DESCRIPTOR_HEAP_DESC
+// 2. 创建描述符堆 md3dDevice->CreateDescriptorHeap(...)
+// ---------------------------------------------------------------------------
 void ShapesApp::BuildDescriptorHeaps()
 {
     UINT objCount = (UINT)mOpaqueRitems.size(); // 22 个
 
     // Need a CBV descriptor for each object for each frame resource,
-    // +1 for the perPass CBV for each frame resource.  每帧需要1个过程常量缓冲区
+    // +1 for the perPass CBV for each frame resource.  每帧需要1个过程常量缓冲区,存储视图、投影、光照矩阵等
     UINT numDescriptors = (objCount+1) * gNumFrameResources;
 
     // Save an offset to the start of the pass CBVs.  These are the last 3 descriptors.
@@ -423,6 +427,14 @@ void ShapesApp::BuildDescriptorHeaps()
         IID_PPV_ARGS(&mCbvHeap)));
 }
 
+// ------------------------------- 构建常量缓冲区视图 --------------------------
+// 1. 计算物体常量结构 ObjectConstants 的大小
+// 2. 获取物体常量的地址 objectCB->GetGPUVirtualAddress();
+// 3. 获取描述符堆的句柄 handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvHeap->GetCPUDescriptorHandleForHeapStart());
+// 4. 填写cbv的描述符结构体 struct D3D12_CONSTANT_BUFFER_VIEW_DESC
+// 5. 为每个物体的每个帧资源创建缓冲区视图 md3dDevice->CreateConstantBufferView(...) 
+// 6. 同上为过程常量的每个帧资源创建常量缓冲区视图
+// --------------------------------------------------------------------------
 void ShapesApp::BuildConstantBufferViews()
 {
     UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
@@ -476,6 +488,11 @@ void ShapesApp::BuildConstantBufferViews()
     }
 }
 
+//------------------------------- 构建根签名 -----------------------------------
+// 1. 定义根签名描述符 struct CD3DX12_ROOT_SIGNATURE_DESC
+// 2. 序列化根签名描述符 D3D12SerializeRootSignature(...)
+// 3. 创建根签名 md3dDevice->CreateRootSignature(...)
+// ---------------------------------------------------------------------------
 void ShapesApp::BuildRootSignature()
 {
     CD3DX12_DESCRIPTOR_RANGE cbvTable0;
@@ -514,6 +531,10 @@ void ShapesApp::BuildRootSignature()
 		IID_PPV_ARGS(mRootSignature.GetAddressOf())));
 }
 
+// ------------------------- 编译shader，创建输入布局 -------------------------
+// 1. 编译 shader, D3DCompileFromFile(...)
+// 2. 创建输入布局 mInputLayout struct D3D12_INPUT_ELEMENT_DESC 
+// -------------------------------------------------------------------------
 void ShapesApp::BuildShadersAndInputLayout()
 {
 	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\color.hlsl", nullptr, "VS", "vs_5_1");
@@ -526,6 +547,11 @@ void ShapesApp::BuildShadersAndInputLayout()
     };
 }
 
+// ------------------------- 创建几何体 -------------------------------------
+// 1. 构建顶点集合和索引集合
+// 2. 构建 4 个 SubmeshGeometry 结构
+// 3. 创建 ID3DBlob 对象（CPU 端），拷贝顶点和索引数据 D3DCreateBlob(...)
+// 4. 创建默认缓冲区对象（GPU 端），拷贝顶点和索引数据 d3dUtil::CreateDefaultBuffer(...)
 void ShapesApp::BuildShapeGeometry()
 {
     GeometryGenerator geoGen;
@@ -650,6 +676,12 @@ void ShapesApp::BuildShapeGeometry()
 	mGeometries[geo->Name] = std::move(geo); // move 将 unique_ptr geo 的所有权转移到 mGeometries 中
 }
 
+// ------------------------- 创建流水线状态对象 -------------------------------------
+// 1. 创建不透明物体的 PSO 结构体 struct D3D12_GRAPHICS_PIPELINE_STATE_DESC
+// 2. 设置输入布局、根签名、顶点着色器、像素着色器、光栅化状态、混合状态、深度模板状态、采样掩码、图元拓扑类型、渲染目标格式、采样描述
+// 3. 创建PSO md3dDevice->CreateGraphicsPipelineState(...)
+// 4. 创建线框模式的 PSO
+// --------------------------------------------------------------------------------
 void ShapesApp::BuildPSOs()
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
@@ -693,6 +725,10 @@ void ShapesApp::BuildPSOs()
     ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaqueWireframePsoDesc, IID_PPV_ARGS(&mPSOs["opaque_wireframe"])));
 }
 
+// ------------------------- 创建帧资源 -------------------------------------
+// 1. 创建 gNumFrameResources 个帧资源
+// 2. 每个帧资源包含一个 ObjectConstants 缓冲区和一个 PassConstants 缓冲区
+// -----------------------------------------------------------------------
 void ShapesApp::BuildFrameResources()
 {
     for(int i = 0; i < gNumFrameResources; ++i)
@@ -702,6 +738,10 @@ void ShapesApp::BuildFrameResources()
     }
 }
 
+// ------------------------- 创建渲染项 -------------------------------------
+// 1. 为【每一个】要渲染的 “item”创建 RenderItem 对象
+// 2. 将 RenderItem 对象添加到 mAllRitems 集合中
+// ------------------------------------------------------------------------
 void ShapesApp::BuildRenderItems()
 {
 	auto boxRitem = std::make_unique<RenderItem>();
@@ -783,9 +823,9 @@ void ShapesApp::BuildRenderItems()
 
 void ShapesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
 {
-    UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
+    //UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
  
-	auto objectCB = mCurrFrameResource->ObjectCB->Resource();
+	//auto objectCB = mCurrFrameResource->ObjectCB->Resource();
 
     // For each render item...
     for(size_t i = 0; i != ritems.size(); ++i)

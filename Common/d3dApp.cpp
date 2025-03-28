@@ -627,14 +627,16 @@ void D3DApp::CalculateFrameStats()
     
 	static int frameCnt = 0;
 	static float timeElapsed = 0.0f;
+	float totTime = 0.0f;
 
 	frameCnt++;
 
 	// Compute averages over one second period.
 	// 以 1 秒为统计周期来计算平均帧数以及每帧的平均渲染时间
-	if( (mTimer.TotalTime() - timeElapsed) >= 1.0f )
+	totTime = mTimer.TotalTime();
+	if( (totTime - timeElapsed) >= 1.0f )
 	{
-		float fps = (float)frameCnt; // fps = frameCnt / 1
+		float fps = (float)frameCnt / (totTime - timeElapsed); // fps = frameCnt / Δt
 		float mspf = 1000.0f / fps;
 
         wstring fpsStr = std::to_wstring(fps);
@@ -648,7 +650,7 @@ void D3DApp::CalculateFrameStats()
 		
 		// Reset for next average.
 		frameCnt = 0;
-		timeElapsed += 1.0f;
+		timeElapsed = totTime;
 	}
 }
 
