@@ -355,24 +355,30 @@ void ShapesApp::UpdateCamera(const GameTimer& gt)
 
 void ShapesApp::UpdateObjectCBs(const GameTimer& gt)
 {
-	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
-	for(auto& e : mAllRitems)
-	{
-		// Only update the cbuffer data if the constants have changed.  
-		// This needs to be tracked per frame resource.
-		if(e->NumFramesDirty > 0)
-		{
-			XMMATRIX world = XMLoadFloat4x4(&e->World);
+	/*
+		Because we use root constant to replace descriptor table for ObjectConstants,
+		we don't update world matrix through descriptor heap(+++or upload heap).
+	*/
+	//auto currObjectCB = mCurrFrameResource->ObjectCB.get();
+	//for(auto& e : mAllRitems)
+	//{
+	//	// Only update the cbuffer data if the constants have changed.  
+	//	// This needs to be tracked per frame resource.
+	//	if(e->NumFramesDirty > 0)
+	//	{
+	//		/*XMMATRIX world = XMLoadFloat4x4(&e->World);
 
-			ObjectConstants objConstants;
-			XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
+	//		ObjectConstants objConstants;
+	//		XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
 
-			currObjectCB->CopyData(e->ObjCBIndex, objConstants);
+	//		currObjectCB->CopyData(e->ObjCBIndex, objConstants);*/
 
-			// Next FrameResource need to be updated too.
-			e->NumFramesDirty--;
-		}
-	}
+	//		// Next FrameResource need to be updated too.
+	//		e->NumFramesDirty--;
+	//	}
+	//}
+
+	return;
 }
 
 void ShapesApp::UpdateMainPassCB(const GameTimer& gt)
@@ -409,14 +415,15 @@ void ShapesApp::UpdateMainPassCB(const GameTimer& gt)
 // ---------------------------------------------------------------------------
 void ShapesApp::BuildDescriptorHeaps()
 {
-    UINT objCount = (UINT)mOpaqueRitems.size(); // 22 个
+	//UINT objCount = (UINT)mOpaqueRitems.size(); // 22 个
+	UINT objCount = 0; // we use root constant to store world matrix
 
     // Need a CBV descriptor for each object for each frame resource,
     // +1 for the perPass CBV for each frame resource.  每帧需要1个过程常量缓冲区,存储视图、投影、光照矩阵等
     UINT numDescriptors = (objCount+1) * gNumFrameResources;
 
     // Save an offset to the start of the pass CBVs.  These are the last 3 descriptors.
-    mPassCbvOffset = objCount * gNumFrameResources;
+	mPassCbvOffset = objCount * gNumFrameResources;
 
     D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
     cbvHeapDesc.NumDescriptors = numDescriptors;
@@ -437,34 +444,38 @@ void ShapesApp::BuildDescriptorHeaps()
 // --------------------------------------------------------------------------
 void ShapesApp::BuildConstantBufferViews()
 {
+	 /*
+		Because we use root constant to replace descriptor table for ObjectConstants, 
+		we don't need to create CBV.
+	 */
     UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 
-    UINT objCount = (UINT)mOpaqueRitems.size();
+	UINT objCount = (UINT)mOpaqueRitems.size(); // 22 个
 
     // Need a CBV descriptor for each object for each frame resource.
     // 当前使用 3 个帧资源，每帧 n 个渲染项，于是有 3n 个物体常量缓冲区
-    for(int frameIndex = 0; frameIndex < gNumFrameResources; ++frameIndex)
-    {
-        auto objectCB = mFrameResources[frameIndex]->ObjectCB->Resource();
-        for(UINT i = 0; i < objCount; ++i)
-        {
-            D3D12_GPU_VIRTUAL_ADDRESS cbAddress = objectCB->GetGPUVirtualAddress();
+    //for(int frameIndex = 0; frameIndex < gNumFrameResources; ++frameIndex)
+    //{
+    //    auto objectCB = mFrameResources[frameIndex]->ObjectCB->Resource();
+    //    for(UINT i = 0; i < objCount; ++i)
+    //    {
+    //        D3D12_GPU_VIRTUAL_ADDRESS cbAddress = objectCB->GetGPUVirtualAddress();
 
-            // Offset to the ith object constant buffer in the buffer.
-            cbAddress += i*objCBByteSize;
+    //        // Offset to the ith object constant buffer in the buffer.
+    //        cbAddress += i*objCBByteSize;
 
-            // Offset to the object cbv in the descriptor heap.
-            int heapIndex = frameIndex*objCount + i;
-            auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvHeap->GetCPUDescriptorHandleForHeapStart()); // 获取堆中第一个描述符句柄
-            handle.Offset(heapIndex, mCbvSrvUavDescriptorSize);
+    //        // Offset to the object cbv in the descriptor heap.
+    //        int heapIndex = frameIndex*objCount + i;
+    //        auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvHeap->GetCPUDescriptorHandleForHeapStart()); // 获取堆中第一个描述符句柄
+    //        handle.Offset(heapIndex, mCbvSrvUavDescriptorSize);
 
-            D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
-            cbvDesc.BufferLocation = cbAddress;
-            cbvDesc.SizeInBytes = objCBByteSize;
+    //        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
+    //        cbvDesc.BufferLocation = cbAddress;
+    //        cbvDesc.SizeInBytes = objCBByteSize;
 
-            md3dDevice->CreateConstantBufferView(&cbvDesc, handle);
-        }
-    }
+    //        md3dDevice->CreateConstantBufferView(&cbvDesc, handle);
+    //    }
+    //}
 
     UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
@@ -492,22 +503,21 @@ void ShapesApp::BuildConstantBufferViews()
 // 1. 定义根签名描述符 struct CD3DX12_ROOT_SIGNATURE_DESC
 // 2. 序列化根签名描述符 D3D12SerializeRootSignature(...)
 // 3. 创建根签名 md3dDevice->CreateRootSignature(...)
+// ref ==> https://learn.microsoft.com/en-us/windows/win32/direct3d12/creating-a-root-signature
 // ---------------------------------------------------------------------------
 void ShapesApp::BuildRootSignature()
 {
-    CD3DX12_DESCRIPTOR_RANGE cbvTable0;
-    cbvTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-
-    CD3DX12_DESCRIPTOR_RANGE cbvTable1;
-    cbvTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
+    // Create descriptor table.
+    CD3DX12_DESCRIPTOR_RANGE descRange[1];
+	descRange[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);   // b1-b1
 
 	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[2];
 
-	// Create root CBVs.
-    slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable0);
-    slotRootParameter[1].InitAsDescriptorTable(1, &cbvTable1);
-
+	// Create root constants.
+	slotRootParameter[0].InitAsConstants(16, 0);  // 16 constants at b0
+    slotRootParameter[1].InitAsDescriptorTable(1, &descRange[0]);   // 1 range b1
+        
 	// A root signature is an array of root parameters.
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(2, slotRootParameter, 0, nullptr, 
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -836,12 +846,28 @@ void ShapesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::v
         cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
         cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
-        // Offset to the CBV in the descriptor heap for this object and for this frame resource.
-        UINT cbvIndex = mCurrFrameResourceIndex*(UINT)mOpaqueRitems.size() + ri->ObjCBIndex;
-        auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
-        cbvHandle.Offset(cbvIndex, mCbvSrvUavDescriptorSize);
 
-        cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
+		/*
+			Because we use root constant to replace descriptor table for ObjectConstants,
+			the following code is no longer used.
+		*/
+        // Offset to the CBV in the descriptor heap for this object and for this frame resource.
+        //UINT cbvIndex = mCurrFrameResourceIndex*(UINT)mOpaqueRitems.size() + ri->ObjCBIndex;
+        //auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+        //cbvHandle.Offset(cbvIndex, mCbvSrvUavDescriptorSize);
+
+        //cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
+
+		/*
+			Instead, we use the following one.
+		*/
+		{
+			XMMATRIX world = XMLoadFloat4x4(&ri->World);
+
+			XMFLOAT4X4 w;
+			XMStoreFloat4x4(&w, XMMatrixTranspose(world));
+			cmdList->SetGraphicsRoot32BitConstants(0, 16, &w, 0); // 16 constants at b0
+		}
 
         cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
     }
