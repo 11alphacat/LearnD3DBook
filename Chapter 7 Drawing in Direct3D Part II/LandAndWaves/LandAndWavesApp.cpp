@@ -171,7 +171,7 @@ LandAndWavesApp::~LandAndWavesApp()
 
 bool LandAndWavesApp::Initialize()
 {
-    if(!D3DApp::Initialize())
+    if(!D3DApp::Initialize()) 
         return false;
 
     // Reset the command list to prep for initialization commands.
@@ -183,7 +183,6 @@ bool LandAndWavesApp::Initialize()
     BuildShadersAndInputLayout();
 	BuildLandGeometry();
     BuildWavesGeometryBuffers();
-    BuildRenderItems();
 	BuildRenderItems();
     BuildFrameResources();
 	BuildPSOs();
@@ -693,7 +692,7 @@ void LandAndWavesApp::BuildRenderItems()
 	wavesRitem->BaseVertexLocation = wavesRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 
 	mWavesRitem = wavesRitem.get();
-
+	      
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(wavesRitem.get());
 
 	auto gridRitem = std::make_unique<RenderItem>();

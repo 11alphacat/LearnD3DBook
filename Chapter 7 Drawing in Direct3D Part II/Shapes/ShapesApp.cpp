@@ -559,6 +559,9 @@ void ShapesApp::BuildShapeGeometry()
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 30.0f, 60, 40);
 	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 10, 10);
 	GeometryGenerator::MeshData cylinder = geoGen.CreateCylinder(0.5f, 0.3f, 3.0f, 20, 20);
+	GeometryGenerator::MeshData skull;
+	geoGen.CreateModelFromFile(L"./skull.txt", skull);
+
 
 	//
 	// We are concatenating all the geometry into one big vertex/index buffer.  So
@@ -570,12 +573,14 @@ void ShapesApp::BuildShapeGeometry()
 	UINT gridVertexOffset = (UINT)box.Vertices.size();
 	UINT sphereVertexOffset = gridVertexOffset + (UINT)grid.Vertices.size();
 	UINT cylinderVertexOffset = sphereVertexOffset + (UINT)sphere.Vertices.size();
+	UINT skullVertexOffset = cylinderVertexOffset + (UINT)cylinder.Vertices.size();
 
 	// Cache the starting index for each object in the concatenated index buffer. 缓存索引偏移
 	UINT boxIndexOffset = 0;
 	UINT gridIndexOffset = (UINT)box.Indices32.size();
 	UINT sphereIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
 	UINT cylinderIndexOffset = sphereIndexOffset + (UINT)sphere.Indices32.size();
+	UINT skullIndexOffset = cylinderIndexOffset + (UINT)cylinder.Indices32.size();
 
     // Define the SubmeshGeometry that cover different 
     // regions of the vertex/index buffers.
@@ -600,6 +605,11 @@ void ShapesApp::BuildShapeGeometry()
 	cylinderSubmesh.StartIndexLocation = cylinderIndexOffset;
 	cylinderSubmesh.BaseVertexLocation = cylinderVertexOffset;
 
+	SubmeshGeometry skullSubmesh;
+	skullSubmesh.IndexCount = (UINT)skull.Indices32.size();
+	skullSubmesh.StartIndexLocation = skullIndexOffset; 
+	skullSubmesh.BaseVertexLocation = skullVertexOffset;
+
 	//
 	// Extract the vertex elements we are interested in and pack the
 	// vertices of all the meshes into one vertex buffer.
@@ -609,7 +619,8 @@ void ShapesApp::BuildShapeGeometry()
 		box.Vertices.size() +
 		grid.Vertices.size() +
 		sphere.Vertices.size() +
-		cylinder.Vertices.size();
+		cylinder.Vertices.size() +
+		skull.Vertices.size();
 
 	std::vector<Vertex> vertices(totalVertexCount); // 顶点集合
 
@@ -638,11 +649,18 @@ void ShapesApp::BuildShapeGeometry()
 		vertices[k].Color = XMFLOAT4(DirectX::Colors::DarkViolet);        // 10根柱子
 	}
 
+    for(size_t i = 0; i < skull.Vertices.size(); ++i, ++k)
+    {
+		vertices[k].Pos = skull.Vertices[i].Position;
+		vertices[k].Color = XMFLOAT4(DirectX::Colors::Black);        // 1个骷髅头
+    }
+
 	std::vector<std::uint16_t> indices; // 索引集合
 	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
 	indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
 	indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
 	indices.insert(indices.end(), std::begin(cylinder.GetIndices16()), std::end(cylinder.GetIndices16()));
+	indices.insert(indices.end(), std::begin(skull.GetIndices16()), std::end(skull.GetIndices16()));
 
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
     const UINT ibByteSize = (UINT)indices.size()  * sizeof(std::uint16_t);
@@ -672,6 +690,7 @@ void ShapesApp::BuildShapeGeometry()
 	geo->DrawArgs["grid"] = gridSubmesh;
 	geo->DrawArgs["sphere"] = sphereSubmesh;
 	geo->DrawArgs["cylinder"] = cylinderSubmesh;
+	geo->DrawArgs["skull"] = skullSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo); // move 将 unique_ptr geo 的所有权转移到 mGeometries 中
 }
@@ -744,9 +763,11 @@ void ShapesApp::BuildFrameResources()
 // ------------------------------------------------------------------------
 void ShapesApp::BuildRenderItems()
 {
+    UINT objCBIndex(0);
+
 	auto boxRitem = std::make_unique<RenderItem>();
 	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-	boxRitem->ObjCBIndex = 0;
+	boxRitem->ObjCBIndex = objCBIndex++;
 	boxRitem->Geo = mGeometries["shapeGeo"].get();
 	boxRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	boxRitem->IndexCount = boxRitem->Geo->DrawArgs["box"].IndexCount;
@@ -756,7 +777,7 @@ void ShapesApp::BuildRenderItems()
 
     auto gridRitem = std::make_unique<RenderItem>();
     gridRitem->World = MathHelper::Identity4x4();
-	gridRitem->ObjCBIndex = 1;
+	gridRitem->ObjCBIndex = objCBIndex++;
 	gridRitem->Geo = mGeometries["shapeGeo"].get();
 	gridRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
     gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
@@ -764,7 +785,6 @@ void ShapesApp::BuildRenderItems()
     gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 	mAllRitems.push_back(std::move(gridRitem));
 
-	UINT objCBIndex = 2;
 	for(int i = 0; i != 5; ++i)
 	{
 		auto leftCylRitem = std::make_unique<RenderItem>(); // 左侧一列柱
@@ -815,6 +835,16 @@ void ShapesApp::BuildRenderItems()
 		mAllRitems.push_back(std::move(leftSphereRitem));
 		mAllRitems.push_back(std::move(rightSphereRitem));
 	}
+
+	auto skullRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&skullRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 5.0f, 0.0f));
+	skullRitem->ObjCBIndex = objCBIndex++;
+	skullRitem->Geo = mGeometries["shapeGeo"].get();
+	skullRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	skullRitem->IndexCount = skullRitem->Geo->DrawArgs["skull"].IndexCount;
+	skullRitem->StartIndexLocation = skullRitem->Geo->DrawArgs["skull"].StartIndexLocation;
+	skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(skullRitem));
 
 	// All the render items are opaque. 非透明
 	for(auto& e : mAllRitems)

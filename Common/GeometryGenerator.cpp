@@ -3,7 +3,11 @@
 //***************************************************************************************
 
 #include "GeometryGenerator.h"
-#include <algorithm>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <stdio.h>
+#include <Windows.h>
 
 using namespace DirectX;
 
@@ -213,6 +217,140 @@ GeometryGenerator::MeshData GeometryGenerator::CreateSphere(float radius, uint32
     return meshData;
 }
  
+void GeometryGenerator::CreateModelFromFile(const std::wstring& fileName, MeshData& meshData)
+{
+	int numVertices(0);
+	int numTriangles(0);
+
+#if 0
+	/*
+		use Cpp io function
+	*/
+	std::wifstream ifstrm(fileName);
+	if (!ifstrm.is_open()) {
+		MessageBox(nullptr, L"模型文件打开失败", L"错误", MB_OK);
+		return;
+	}
+	std::wstring wLine;
+	if (std::getline(ifstrm, wLine)) {
+		std::wstringstream wsstrm(wLine);
+		std::wstring ws;
+		wsstrm >> ws >> numVertices;	// "VertexCount"
+	}
+
+	if (std::getline(ifstrm, wLine)) {
+		std::wstringstream wsstrm(wLine);
+		std::wstring ws;
+		wsstrm >> ws >> numTriangles;	// "TriangleCount"
+	}
+
+	std::getline(ifstrm, wLine); // skip "VertexList ..."
+	std::getline(ifstrm, wLine); // skip "{"
+
+	float px, py, pz, nx, ny, nz;
+	for (int i = 0; i != numVertices; ++i) {
+		if (std::getline(ifstrm, wLine)) {
+			std::wstringstream wsstrm(wLine);
+			wsstrm >> px >> py >> pz >> nx >> ny >> nz;
+			meshData.Vertices.emplace_back(
+				px, py, pz, nx, ny, nz,
+				0, 0, 0, 0, 0);
+
+		}
+	}
+	
+	std::getline(ifstrm, wLine); // skip "}"
+	std::getline(ifstrm, wLine); // skip "TriangleList"
+	std::getline(ifstrm, wLine); // skip "{"
+
+	uint32 ix0, ix1, ix2;
+	for (int i = 0; i != numTriangles; ++i) {
+		if (std::getline(ifstrm, wLine)) {
+			std::wstringstream wsstrm(wLine);
+			wsstrm >> ix0 >> ix1 >> ix2;
+			meshData.Indices32.emplace_back(ix0);
+			meshData.Indices32.emplace_back(ix1);
+			meshData.Indices32.emplace_back(ix2);
+		}
+	}
+
+	ifstrm.close();
+
+#else
+	/*
+		use C I/O function
+		faster, more efficient
+	*/
+	FILE* ifstrm = _wfopen(fileName.c_str(), L"r, ccs=UTF-8");
+	if (!ifstrm) {
+		MessageBox(nullptr, L"模型文件打开失败", L"错误", MB_OK);
+		return;
+	}
+
+	wchar_t line[256];
+
+	// 读取 VertexCount
+	if (fgetws(line, sizeof(line), ifstrm)) {
+		if (swscanf(line, L"VertexCount: %d", &numVertices)) {
+			;
+		}
+	}
+
+	// 读取 TriangleCount
+	if (fgetws(line, sizeof(line), ifstrm)) {
+		if (swscanf(line, L"TriangleCount: %d", &numTriangles)) {
+			;
+		}
+			
+	}
+
+	// 跳过 VertexList 说明行
+	fgetws(line, sizeof(line), ifstrm); // 跳过 "VertexList (pos, normal)"
+	fgetws(line, sizeof(line), ifstrm); // 跳过 "{"
+
+	float px, py, pz, nx, ny, nz;
+	for (int i = 0; i != numVertices; ++i) {
+		if (fgetws(line, sizeof(line), ifstrm)) {
+			if (swscanf(line, L"%f %f %f %f %f %f", &px, &py, &pz, &nx, &ny, &nz)) {
+				meshData.Vertices.emplace_back(
+					px, py, pz, nx, ny, nz,
+					0, 0, 0, 0, 0);
+			}
+		}
+	}
+
+	fgetws(line, sizeof(line), ifstrm); // 跳过 "}"
+	fgetws(line, sizeof(line), ifstrm); // 跳过 "TriangleList"
+	fgetws(line, sizeof(line), ifstrm); // 跳过 "{"
+	
+	uint32 ix0, ix1, ix2;
+	for (int i = 0; i != numTriangles; ++i) {
+		if (fgetws(line, sizeof(line), ifstrm)) {
+			if (swscanf(line, L"%d %d %d", &ix0, &ix1, &ix2)) {
+				meshData.Indices32.emplace_back(ix0);
+				meshData.Indices32.emplace_back(ix1);
+				meshData.Indices32.emplace_back(ix2);
+			}
+		}
+	}
+
+	fclose(ifstrm);
+
+#endif // 1
+
+	// check model completeness
+	if (meshData.Vertices.size() != numVertices) {
+		MessageBox(nullptr, L"模型顶点数不匹配", L"错误", MB_OK);
+		return;
+	}
+	if (meshData.Indices32.size() != numTriangles * 3) {
+		MessageBox(nullptr, L"模型索引数不匹配", L"错误", MB_OK);
+		return;
+	}
+
+	return;
+}
+
 void GeometryGenerator::Subdivide(MeshData& meshData)
 {
 	// Save a copy of the input geometry.
