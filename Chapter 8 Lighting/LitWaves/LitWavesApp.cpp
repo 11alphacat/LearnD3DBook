@@ -459,7 +459,10 @@ void LitWavesApp::UpdateMainPassCB(const GameTimer& gt)
 	XMVECTOR lightDir = -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi); // 将光源的球面坐标转换为笛卡尔坐标
 
 	XMStoreFloat3(&mMainPassCB.Lights[0].Direction, lightDir);
-	mMainPassCB.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
+	//mMainPassCB.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
+	// 使光照强度随时间变化
+	float light = 0.5f * sinf(3.0f * gt.TotalTime()) + 0.5f;
+	mMainPassCB.Lights[0].Strength = { light,0.0f,0.0f };
 
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
@@ -704,7 +707,7 @@ void LitWavesApp::BuildMaterials()
 	grass->MatCBIndex = 0;
     grass->DiffuseAlbedo = XMFLOAT4(0.2f, 0.6f, 0.2f, 1.0f);
     grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
-    grass->Roughness = 0.125f;
+    grass->Roughness = 0.30f;	//  修改材质粗糙度
 
     // This is not a good water material definition, but we do not have all the rendering
     // tools we need (transparency, environment reflection), so we fake it for now.
@@ -713,7 +716,7 @@ void LitWavesApp::BuildMaterials()
 	water->MatCBIndex = 1;
     water->DiffuseAlbedo = XMFLOAT4(0.0f, 0.2f, 0.6f, 1.0f);
     water->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
-    water->Roughness = 0.0f;
+    water->Roughness = 0.20f;	//  修改材质粗糙度
 
 	mMaterials["grass"] = std::move(grass);
 	mMaterials["water"] = std::move(water);

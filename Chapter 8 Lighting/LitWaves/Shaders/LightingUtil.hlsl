@@ -46,7 +46,25 @@ float3 BlinnPhong(float3 lightStrength, float3 lightVec, float3 normal, float3 t
     const float m = mat.Shininess * 256.0f;
     float3 halfVec = normalize(toEye + lightVec);
 
-    float roughnessFactor = (m + 8.0f)*pow(max(dot(halfVec, normal), 0.0f), m) / 8.0f;
+    // cartoon style
+    float roughnessFactor = 0.0f;
+	float hdotn = dot(halfVec, normal);
+    if (hdotn > 0) {
+        roughnessFactor = (m + 8.0f) * pow(max(hdotn, 0.0f), m) / 8.0f;
+    } else {
+        roughnessFactor = 0;
+    }
+    
+    if (roughnessFactor > 0.0f && roughnessFactor <= 0.1f) {
+        roughnessFactor = 0.0f;
+    }
+    else if (roughnessFactor <= 0.8f) {
+		roughnessFactor = 0.5f;
+	}
+	else {
+		roughnessFactor = 0.8f;
+	}
+
     float3 fresnelFactor = SchlickFresnel(mat.FresnelR0, halfVec, lightVec);
 
     float3 specAlbedo = fresnelFactor*roughnessFactor;
@@ -68,6 +86,17 @@ float3 ComputeDirectionalLight(Light L, Material mat, float3 normal, float3 toEy
 
     // Scale light down by Lambert's cosine law.
     float ndotl = max(dot(lightVec, normal), 0.0f);
+    // cartoon style
+    if (ndotl <= 0.0f) {
+        ndotl = 0.4f;
+    }
+    else if (ndotl <= 0.5f) {
+        ndotl = 0.6f;
+    }
+    else {
+        ndotl = 1.0f;
+    }
+
     float3 lightStrength = L.Strength * ndotl;
 
     return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);
