@@ -198,7 +198,6 @@ bool LitWavesApp::Initialize()
     BuildWavesGeometryBuffers();
 	BuildMaterials();
     BuildRenderItems();
-	BuildRenderItems();
     BuildFrameResources();
 	BuildPSOs();
 
@@ -457,7 +456,7 @@ void LitWavesApp::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 
-	XMVECTOR lightDir = -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
+	XMVECTOR lightDir = -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi); // 将光源的球面坐标转换为笛卡尔坐标
 
 	XMStoreFloat3(&mMainPassCB.Lights[0].Direction, lightDir);
 	mMainPassCB.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
