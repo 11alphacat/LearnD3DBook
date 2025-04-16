@@ -1,9 +1,9 @@
-# LearnD3DBook:yum:
-### Ref
-- [d3dcodernet](https://www.d3dcoder.net)
-- [a study path for game-programmer](https://github.com/miloyip/game-programmer.git)
+# LearnDirect3D12 :yum:
+>chapter 8 lighting, practice 8.16.3
 
-Record my journey of learning CG with "Dragon Book":dragon_face:.  
-I use this book *Introduction to 3D Game Programming with Direct3D 12"*.  
+Open **LitColumns.sln** and find ***LitColumnsApp::UpdateMainPassCB(...)*** for more details.
+
+![image](demo/ch8/skull.png)
+
 
 
