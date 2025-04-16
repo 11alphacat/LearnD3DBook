@@ -428,12 +428,59 @@ void LitColumnsApp::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.TotalTime = gt.TotalTime();
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
-	mMainPassCB.Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
-	mMainPassCB.Lights[0].Strength = { 0.6f, 0.6f, 0.6f };
-	mMainPassCB.Lights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
-	mMainPassCB.Lights[1].Strength = { 0.3f, 0.3f, 0.3f };
-	mMainPassCB.Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
-	mMainPassCB.Lights[2].Strength = { 0.15f, 0.15f, 0.15f };
+
+	{
+		// practice 8.16.3/4/5
+		// 修改VERSIONED_LIGHTS 需同步修改Default.hlsl里的宏定义
+		constexpr int VERSIONED_LIGHTS = 4;
+		//const auto geo = mGeometries["shapeGeo"].get();
+		
+		switch (VERSIONED_LIGHTS) {
+		case 3:
+			// 3 点布光，方向光
+			mMainPassCB.Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
+			mMainPassCB.Lights[0].Strength = { 0.6f, 0.6f, 0.6f };
+			mMainPassCB.Lights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
+			mMainPassCB.Lights[1].Strength = { 0.3f, 0.3f, 0.3f };
+			mMainPassCB.Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
+			mMainPassCB.Lights[2].Strength = { 0.15f, 0.15f, 0.15f };
+
+			break;
+		case 4:
+			// 为每个柱子上的球体添加点光源
+			/*XMMATRIX leftSphereWorld = XMMatrixTranslation(-5.0f, 3.5f, -10.0f + i * 5.0f);
+			XMMATRIX rightSphereWorld = XMMatrixTranslation(+5.0f, 3.5f, -10.0f + i * 5.0f);
+			*/
+			for (int i = 0, k = 0; i != 5; ++i) {
+				mMainPassCB.Lights[k].Position = { -5.0f, 6.5f, -10.0f + i * 5.0f };
+				mMainPassCB.Lights[k++].Strength = { 0.0f, 0.0f, 0.0f };
+				
+				mMainPassCB.Lights[k].Position = { +5.0f, 6.5f, -10.0f + i * 5.0f };
+				mMainPassCB.Lights[k++].Strength = { 1.0f, 0.0f, 0.812f };
+			}
+			break;
+
+		case 5:
+			// 为每个柱子上的球体添加聚光灯光源，并斜向下打光
+			for (int i = 0, k = 0; i != 5; ++i) {
+				mMainPassCB.Lights[k].Position = { -7.0f, 6.5f, -10.0f + i * 5.0f };
+				mMainPassCB.Lights[k].SpotPower = 0.5f;
+				mMainPassCB.Lights[k].Direction = { 4.0f, 4.0f, 4.0f };
+				mMainPassCB.Lights[k++].Strength = { 1.0f, 0.0f, 0.812f };
+
+				mMainPassCB.Lights[k].Position = { +7.0f, 6.5f, -10.0f + i * 5.0f };
+				mMainPassCB.Lights[k].SpotPower = 0.3f;
+				mMainPassCB.Lights[k].Direction = { -4.0f, 4.0f, -4.0f };
+				mMainPassCB.Lights[k++].Strength = { 1.0f, 1.0f, 0.812f };
+			}
+
+			break;
+		
+		}
+	
+	}
+
+
 
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
@@ -794,7 +841,7 @@ void LitColumnsApp::BuildRenderItems()
 	mAllRitems.push_back(std::move(gridRitem));
 
 	auto skullRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&skullRitem->World, XMMatrixScaling(0.5f, 0.5f, 0.5f)*XMMatrixTranslation(0.0f, 1.0f, 0.0f));
+	XMStoreFloat4x4(&skullRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f)*XMMatrixTranslation(0.0f, 2.0f, 0.0f));
 	skullRitem->TexTransform = MathHelper::Identity4x4();
 	skullRitem->ObjCBIndex = 2;
 	skullRitem->Mat = mMaterials["skullMat"].get();
