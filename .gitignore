@@ -46,19 +46,31 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-# Visual Studio
+# Visual Studio specific files
 .vs/
+*.user
+*.filters
+
+# Build output directories
 x64/
+x86/
+Debug/
+Release/
+bin/
+obj/
+
+# Compiled binary files
 *.exe
+*.dll
 *.pdb
 *.obj
 *.iobj
 *.ipdb
 *.idb
 *.ilk
-*.user
-*.tlog
+
+# Logs and temporary files
 *.log
+*.tlog
 *.enc
 *.recipe
-*.filters
