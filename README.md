@@ -9,9 +9,25 @@ I use this book *"Introduction to 3D Game Programming with Direct3D 12"*.
 
 ### Demo List
 
-#### Ch8 lighting
+#### Ch8 Lighting
 ```
 git checkout prac_8.16.3
 ```
 Open **LitColumns.sln** and find ***LitColumnsApp::UpdateMainPassCB(...)*** for more details.
 <img src="demo/ch8/skull.png" alt="practice 8.16.3" style="width: 75%; height: auto;" align="center">
+
+
+
+#### Ch9 Texturing
+
+```
+git checkout prac_9
+```
+Open **Crate.sln** and find ***CrateApp::AnimateMaterials(...)*** and **Default.hlsl** for more details.
+
+<video src="demo/ch9/crate.mp4" controls loop></video>
+
+
+
+Open **LitColumns.sln** and run.
+<img src="demo/ch9/LitColumns.png" alt="practice 8.16.3" style="width: 75%; height: auto;" align="center">
