@@ -20,15 +20,22 @@
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
 
-Texture2D    gDiffuseMap : register(t0);
-SamplerState gsamLinear  : register(s0);
+Texture2D    gDiffuseMap[3] : register(t0); // inspired by gpt, use an array rather than registers
+
+// 这里应该也可以用数组来代替，只使用一个寄存器
+SamplerState gsamPointWrap : register(s0);
+SamplerState gsamPointClamp : register(s1);
+SamplerState gsamLinearWrap : register(s2);
+SamplerState gsamLinearClamp : register(s3);
+SamplerState gsamAnisotropicWrap : register(s4);
+SamplerState gsamAnisotropicClamp : register(s5);
 
 
 // Constant data that varies per frame.
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
-    float4x4 gTexTransform;
+    float4x4 gTexTransform;   
 };
 
 // Constant data that varies per material.
@@ -95,15 +102,23 @@ VertexOut VS(VertexIn vin)
     vout.PosH = mul(posW, gViewProj);
 	
 	// Output vertex attributes for interpolation across triangle.
-    float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
-    vout.TexC = mul(texC, gMatTransform).xy;
+    float4 rotatedTexC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
+    // 传入的旋转矩阵是绕 z 轴旋转，故需要先将 uv 坐标移动，以（0.5，0.5）为旋转中心
+	rotatedTexC.xy -= 0.5f;
+	rotatedTexC = mul(rotatedTexC, gMatTransform);
+	rotatedTexC.xy += 0.5f;
+    vout.TexC = rotatedTexC.xy;
+
 
     return vout;
 }
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamLinear, pin.TexC) * gDiffuseAlbedo;
+    // 两种纹理效果叠加，使用纹素相乘
+    float4 diffuseAlbedo1 = gDiffuseMap[1].Sample(gsamAnisotropicClamp, pin.TexC) * gDiffuseAlbedo;
+    float4 diffuseAlbedo2 = gDiffuseMap[2].Sample(gsamAnisotropicClamp, pin.TexC) * gDiffuseAlbedo;
+	float4 diffuseAlbedo = diffuseAlbedo1 * diffuseAlbedo2;
 
     // Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);

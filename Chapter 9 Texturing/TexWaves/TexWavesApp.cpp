@@ -284,7 +284,7 @@ void TexWavesApp::Draw(const GameTimer& gt)
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 
 	auto passCB = mCurrFrameResource->PassCB->Resource();
-	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());	// b1
 
     DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
 
@@ -954,9 +954,9 @@ void TexWavesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std:
         D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->ObjCBIndex*objCBByteSize;
 		D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = matCB->GetGPUVirtualAddress() + ri->Mat->MatCBIndex*matCBByteSize;
 
-		cmdList->SetGraphicsRootDescriptorTable(0, tex);
-        cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
-        cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
+		cmdList->SetGraphicsRootDescriptorTable(0, tex);				// t0
+        cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);	// b0
+        cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);	// b2
 
         cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
     }
