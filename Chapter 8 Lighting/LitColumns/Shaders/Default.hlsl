@@ -1,38 +1,45 @@
 //***************************************************************************************
 // Default.hlsl by Frank Luna (C) 2015 All Rights Reserved.
-//
-// Default shader, currently supports lighting.
 //***************************************************************************************
 
 // Defaults for number of lights.
 #ifndef NUM_DIR_LIGHTS
-    #define NUM_DIR_LIGHTS 3
+#define NUM_DIR_LIGHTS 3
 #endif
 
 #ifndef NUM_POINT_LIGHTS
-    #define NUM_POINT_LIGHTS 0
+#define NUM_POINT_LIGHTS 0
 #endif
 
 #ifndef NUM_SPOT_LIGHTS
-    #define NUM_SPOT_LIGHTS 0
+#define NUM_SPOT_LIGHTS 0
 #endif
 
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
 
-// Constant data that varies per frame.
+Texture2D    gDiffuseMap : register(t0);
 
+SamplerState gsamPointWrap : register(s0);
+SamplerState gsamPointClamp : register(s1);
+SamplerState gsamLinearWrap : register(s2);
+SamplerState gsamLinearClamp : register(s3);
+SamplerState gsamAnisotropicWrap : register(s4);
+SamplerState gsamAnisotropicClamp : register(s5);
+
+// Constant data that varies per frame.
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
+    float4x4 gTexTransform;
 };
 
 cbuffer cbMaterial : register(b1)
 {
-	float4 gDiffuseAlbedo;
-    float3 gFresnelR0;
-    float  gRoughness;
-	float4x4 gMatTransform;
+    float4   gDiffuseAlbedo;
+    float3   gFresnelR0;
+    float    gRoughness;
+    float4x4 gMatTransform;
 };
 
 // Constant data that varies per material.
@@ -60,24 +67,26 @@ cbuffer cbPass : register(b2)
     // are spot lights for a maximum of MaxLights per object.
     Light gLights[MaxLights];
 };
- 
+
 struct VertexIn
 {
-	float3 PosL     : POSITION;         // L: Local space
-    float3 NormalL  : NORMAL;
+    float3 PosL : POSITION;
+    float3 NormalL : NORMAL;
+    float2 TexC : TEXCOORD;
 };
 
 struct VertexOut
 {
-	float4 PosH     : SV_POSITION;      // H: Homogeneous clip
-	float3 PosW     : POSITION;         // W: World space
-    float3 NormalW  : NORMAL;
+    float4 PosH : SV_POSITION;
+    float3 PosW : POSITION;
+    float3 NormalW : NORMAL;
+    float2 TexC : TEXCOORD;
 };
 
 VertexOut VS(VertexIn vin)
 {
-	VertexOut vout = (VertexOut)0.0f;
-	
+    VertexOut vout = (VertexOut)0.0f;
+
     // Transform to world space.
     float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
     vout.PosW = posW.xyz;
@@ -88,32 +97,42 @@ VertexOut VS(VertexIn vin)
     // Transform to homogeneous clip space.
     vout.PosH = mul(posW, gViewProj);
 
+    // Output vertex attributes for interpolation across triangle.
+    float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
+    vout.TexC = mul(texC, gMatTransform).xy;
+
+
+
     return vout;
 }
 
 float4 PS(VertexOut pin) : SV_Target
 {
+    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicClamp, pin.TexC) * gDiffuseAlbedo;
+
     // Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
 
     // Vector from point being lit to eye. 
     float3 toEyeW = normalize(gEyePosW - pin.PosW);
 
-	// Indirect lighting.
-    float4 ambient = gAmbientLight*gDiffuseAlbedo;
+    // Light terms.
+    float4 ambient = gAmbientLight * diffuseAlbedo;
 
     const float shininess = 1.0f - gRoughness;
-    Material mat = { gDiffuseAlbedo, gFresnelR0, shininess };
+    Material mat = { diffuseAlbedo, gFresnelR0, shininess };
     float3 shadowFactor = 1.0f;
-    float4 directLight = ComputeLighting(gLights, mat, pin.PosW, 
+    float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
         pin.NormalW, toEyeW, shadowFactor);
 
     float4 litColor = ambient + directLight;
 
-    // Common convention to take alpha from diffuse material.
-    litColor.a = gDiffuseAlbedo.a;
+    // Common convention to take alpha from diffuse albedo.
+    litColor.a = diffuseAlbedo.a;
 
     return litColor;
 }
+
+
 
 
