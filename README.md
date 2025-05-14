@@ -25,9 +25,13 @@ git checkout prac_9
 ```
 Open **Crate.sln** and find ***CrateApp::AnimateMaterials(...)*** and **Default.hlsl** for more details.
 
-<video src="demo/ch9/crate.mp4" controls loop></video>
+<div align="center">
+  <img src="demo/ch9/crate.gif" width="60%">
+</div>
 
 
 
 Open **LitColumns.sln** and run.
-<img src="demo/ch9/LitColumns.png" alt="practice 8.16.3" style="width: 75%; height: auto;" align="center">
+<div align="center">
+	<img src="demo/ch9/LitColumns.png" alt="practice 8.16.3" style="width: 75%; height: auto;" align="center">
+</div>
