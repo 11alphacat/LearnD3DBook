@@ -871,6 +871,8 @@ void BlendApp::BuildPSOs()
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = opaquePsoDesc;
 
 	D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
+	// 最终颜色	= 源颜色 × 源Alpha + 目标颜色 ×(1 - 源Alpha)
+	// 最终Alpha	= 源Alpha
 	transparencyBlendDesc.BlendEnable = true;
 	transparencyBlendDesc.LogicOpEnable = false;
 	transparencyBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
@@ -881,6 +883,9 @@ void BlendApp::BuildPSOs()
 	transparencyBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
 	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	//transparencyBlendDesc.RenderTargetWriteMask = 
+		//(D3D12_COLOR_WRITE_ENABLE_BLUE | D3D12_COLOR_WRITE_ENABLE_ALPHA);
+
 
 	transparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&mPSOs["transparent"])));
