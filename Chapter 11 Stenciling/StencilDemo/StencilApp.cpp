@@ -419,7 +419,7 @@ void StencilApp::OnKeyboardInput(const GameTimer& gt)
 	XMVECTOR shadowPlane = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // xz plane
 	XMVECTOR toMainLight = -XMLoadFloat3(&mMainPassCB.Lights[0].Direction);
 	XMMATRIX S = XMMatrixShadow(shadowPlane, toMainLight);
-	XMMATRIX shadowOffsetY = XMMatrixTranslation(0.0f, 0.001f, 0.0f);
+	XMMATRIX shadowOffsetY = XMMatrixTranslation(0.0f, 0.001f, 0.0f);	// slightly offset shadow to avoid z-fighting
 	XMStoreFloat4x4(&mShadowedSkullRitem->World, skullWorld * S * shadowOffsetY);
 
 	mSkullRitem->NumFramesDirty = gNumFrameResources;
@@ -539,7 +539,7 @@ void StencilApp::UpdateReflectedPassCB(const GameTimer& gt)
 	mReflectedPassCB = mMainPassCB;
 
 	XMVECTOR mirrorPlane = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
-	XMMATRIX R = XMMatrixReflect(mirrorPlane);
+	XMMATRIX R = XMMatrixReflect(mirrorPlane);		// create a reflect matrix
 
 	// Reflect the lighting.
 	for(int i = 0; i < 3; ++i)
@@ -548,7 +548,7 @@ void StencilApp::UpdateReflectedPassCB(const GameTimer& gt)
 		XMVECTOR reflectedLightDir = XMVector3TransformNormal(lightDir, R);
 		XMStoreFloat3(&mReflectedPassCB.Lights[i].Direction, reflectedLightDir);
 	}
-
+	 
 	// Reflected pass stored in index 1
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(1, mReflectedPassCB);
@@ -945,7 +945,7 @@ void StencilApp::BuildPSOs()
 	transparencyBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
 	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
+	
 	transparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&mPSOs["transparent"])));
 
@@ -954,7 +954,7 @@ void StencilApp::BuildPSOs()
 	//
 
 	CD3DX12_BLEND_DESC mirrorBlendState(D3D12_DEFAULT);
-	mirrorBlendState.RenderTarget[0].RenderTargetWriteMask = 0;
+	mirrorBlendState.RenderTarget[0].RenderTargetWriteMask = 0;	// no color write
 
 	D3D12_DEPTH_STENCIL_DESC mirrorDSS;
 	mirrorDSS.DepthEnable = true;
@@ -967,7 +967,7 @@ void StencilApp::BuildPSOs()
 	mirrorDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
 	mirrorDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	mirrorDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
-	mirrorDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	mirrorDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS; // mark mirror area
 
 	// We are not rendering backfacing polygons, so these settings do not matter.
 	mirrorDSS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
