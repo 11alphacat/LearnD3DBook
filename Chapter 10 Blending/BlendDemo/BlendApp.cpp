@@ -274,7 +274,9 @@ void BlendApp::Draw(const GameTimer& gt)
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     // Clear the back buffer and depth buffer.
-    mCommandList->ClearRenderTargetView(CurrentBackBufferView(), (float*)&mMainPassCB.FogColor, 0, nullptr);
+	//mCommandList->ClearRenderTargetView(CurrentBackBufferView(), (float*)&mMainPassCB.FogColor, 0, nullptr);
+	float clearColor[4] = { 0.0f, 0.0f, 0.0f,0.0f };
+	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), clearColor, 0, nullptr);
     mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
     // Specify the buffers we are going to render to.
@@ -288,12 +290,15 @@ void BlendApp::Draw(const GameTimer& gt)
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
+	// depth complexity visualization
+	mCommandList->SetPipelineState(mPSOs["depthVis"].Get());
+
     DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
 
-	mCommandList->SetPipelineState(mPSOs["alphaTested"].Get());
+	//mCommandList->SetPipelineState(mPSOs["alphaTested"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTested]);
 
-	mCommandList->SetPipelineState(mPSOs["transparent"].Get());
+	//mCommandList->SetPipelineState(mPSOs["transparent"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Transparent]);
 
     // Indicate a state transition on the resource usage.
@@ -864,6 +869,28 @@ void BlendApp::BuildPSOs()
 	opaquePsoDesc.DSVFormat = mDepthStencilFormat;
     ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
 
+	//
+	// PSO for depth complexity test
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC depthVisPsoDesc = opaquePsoDesc;
+	depthVisPsoDesc.DepthStencilState.DepthEnable = FALSE;
+	depthVisPsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+
+	D3D12_RENDER_TARGET_BLEND_DESC addBlendDesc = {};
+	addBlendDesc.BlendEnable = TRUE;
+	addBlendDesc.LogicOpEnable = FALSE;
+	addBlendDesc.SrcBlend = D3D12_BLEND_ONE;
+	addBlendDesc.DestBlend = D3D12_BLEND_ONE;
+	addBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+	addBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+	addBlendDesc.DestBlendAlpha = D3D12_BLEND_ONE;
+	addBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	addBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+	addBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	depthVisPsoDesc.BlendState.RenderTarget[0] = addBlendDesc;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&depthVisPsoDesc, IID_PPV_ARGS(&mPSOs["depthVis"])));
+	
 	//
 	// PSO for transparent objects
 	//
