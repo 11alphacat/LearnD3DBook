@@ -288,8 +288,16 @@ void StencilApp::Draw(const GameTimer& gt)
 	// Draw opaque items--floors, walls, skull.
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
-    DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
 	
+	DrawRenderItems(mCommandList.Get(), {mRitemLayer[(int)RenderLayer::Opaque][0]} ); // floor
+	
+	mCommandList->SetPipelineState(mPSOs["wallNoDepth"].Get());
+	DrawRenderItems(mCommandList.Get(), { mRitemLayer[(int)RenderLayer::Opaque][1] }); // walls
+
+	mCommandList->SetPipelineState(mPSOs["opaque"].Get());
+	DrawRenderItems(mCommandList.Get(), { mRitemLayer[(int)RenderLayer::Opaque][2] }); // skull
+
+
 	// Mark the visible mirror pixels in the stencil buffer with the value 1
 	mCommandList->OMSetStencilRef(1);
 	mCommandList->SetPipelineState(mPSOs["markStencilMirrors"].Get());
@@ -927,6 +935,15 @@ void StencilApp::BuildPSOs()
 	opaquePsoDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
 	opaquePsoDesc.DSVFormat = mDepthStencilFormat;
     ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
+
+	//
+	// ÐÂÔö£ºPSO for wall without depth test
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC wallNoDepthPsoDesc = opaquePsoDesc;
+	wallNoDepthPsoDesc.DepthStencilState.DepthEnable = false;
+	wallNoDepthPsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	wallNoDepthPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&wallNoDepthPsoDesc, IID_PPV_ARGS(&mPSOs["wallNoDepth"])));
 
 	//
 	// PSO for transparent objects
