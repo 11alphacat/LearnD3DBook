@@ -126,6 +126,7 @@ private:
 	RenderItem* mSkullRitem = nullptr;
 	RenderItem* mReflectedSkullRitem = nullptr;
 	RenderItem* mShadowedSkullRitem = nullptr;
+	RenderItem* mReflectedShadowedSkullRitem = nullptr;
 
 	// List of all the render items.
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
@@ -297,7 +298,7 @@ void StencilApp::Draw(const GameTimer& gt)
 
 	// Draw the reflection into the mirror only (only for pixels where the stencil buffer is 1).
 	// Note that we must supply a different per-pass constant buffer--one with the lights reflected.
-	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress() + 1 * passCBByteSize);
+	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress() + 1 * passCBByteSize); // use reflected light
 	mCommandList->SetPipelineState(mPSOs["drawStencilReflections"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Reflected]);
 
@@ -422,9 +423,23 @@ void StencilApp::OnKeyboardInput(const GameTimer& gt)
 	XMMATRIX shadowOffsetY = XMMatrixTranslation(0.0f, 0.001f, 0.0f);	// slightly offset shadow to avoid z-fighting
 	XMStoreFloat4x4(&mShadowedSkullRitem->World, skullWorld * S * shadowOffsetY);
 
+	// Update shadow of reflected skull world matrix.
+	// PLAN A: reflect first, then project
+	//XMMATRIX reflectedSkullWorld = XMLoadFloat4x4(&mReflectedSkullRitem->World);
+	//XMVECTOR reflectedLight = XMVector3TransformNormal(toMainLight, R);
+	//XMMATRIX reflectedS = XMMatrixShadow(shadowPlane, reflectedLight); // project matrix
+	//XMStoreFloat4x4(&mReflectedShadowedSkullRitem->World, 
+	//	reflectedSkullWorld * reflectedS * shadowOffsetY);
+
+	// PLAN B: directly reflect the shadow
+	XMMATRIX shadowedSkullWorld = XMLoadFloat4x4(&mShadowedSkullRitem->World);
+	XMStoreFloat4x4(&mReflectedShadowedSkullRitem->World, shadowedSkullWorld * R);
+
+
 	mSkullRitem->NumFramesDirty = gNumFrameResources;
 	mReflectedSkullRitem->NumFramesDirty = gNumFrameResources;
 	mShadowedSkullRitem->NumFramesDirty = gNumFrameResources;
+	mReflectedShadowedSkullRitem->NumFramesDirty = gNumFrameResources;
 }
  
 void StencilApp::UpdateCamera(const GameTimer& gt)
@@ -1007,6 +1022,10 @@ void StencilApp::BuildPSOs()
 	drawReflectionsPsoDesc.DepthStencilState = reflectionsDSS;
 	drawReflectionsPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 	drawReflectionsPsoDesc.RasterizerState.FrontCounterClockwise = true;
+
+	// enable alpha blending for reflections
+	drawReflectionsPsoDesc.BlendState = transparentPsoDesc.BlendState;
+
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&drawReflectionsPsoDesc, IID_PPV_ARGS(&mPSOs["drawStencilReflections"])));
 
 	//
@@ -1139,6 +1158,7 @@ void StencilApp::BuildRenderItems()
 	auto reflectedSkullRitem = std::make_unique<RenderItem>();
 	*reflectedSkullRitem = *skullRitem;
 	reflectedSkullRitem->ObjCBIndex = 3;
+	//reflectedSkullRitem->Mat = mMaterials["skullMat"].get(); // has already been set
 	mReflectedSkullRitem = reflectedSkullRitem.get();
 	mRitemLayer[(int)RenderLayer::Reflected].push_back(reflectedSkullRitem.get());
 
@@ -1163,12 +1183,32 @@ void StencilApp::BuildRenderItems()
 	mRitemLayer[(int)RenderLayer::Mirrors].push_back(mirrorRitem.get());
 	mRitemLayer[(int)RenderLayer::Transparent].push_back(mirrorRitem.get());
 
+	// Reflect the floor
+	auto reflectedFloorRitem = std::make_unique<RenderItem>();
+	*reflectedFloorRitem = *floorRitem;
+	reflectedFloorRitem->ObjCBIndex = 6;
+	XMMATRIX floorWorld = XMLoadFloat4x4(&floorRitem->World);
+	XMVECTOR mirrorPlane = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
+	XMMATRIX R = XMMatrixReflect(mirrorPlane);		// create a reflect matrix
+	XMStoreFloat4x4(&reflectedFloorRitem->World, floorWorld * R); // reflect the floor
+	mRitemLayer[(int)RenderLayer::Reflected].push_back(reflectedFloorRitem.get());
+
+	// Reflect the shadow of the skull
+	auto reflectedShadowedSkullRitem = std::make_unique<RenderItem>();
+	*reflectedShadowedSkullRitem = *shadowedSkullRitem;
+	reflectedShadowedSkullRitem->ObjCBIndex = 7;
+	mReflectedShadowedSkullRitem = reflectedShadowedSkullRitem.get();
+	mRitemLayer[(int)RenderLayer::Reflected].push_back(reflectedShadowedSkullRitem.get());
+
 	mAllRitems.push_back(std::move(floorRitem));
 	mAllRitems.push_back(std::move(wallsRitem));
 	mAllRitems.push_back(std::move(skullRitem));
 	mAllRitems.push_back(std::move(reflectedSkullRitem));
 	mAllRitems.push_back(std::move(shadowedSkullRitem));
 	mAllRitems.push_back(std::move(mirrorRitem));
+
+	mAllRitems.push_back(std::move(reflectedFloorRitem));
+	mAllRitems.push_back(std::move(reflectedShadowedSkullRitem));
 }
 
 void StencilApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
