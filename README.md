@@ -35,3 +35,14 @@ Open **LitColumns.sln** and run.
 <div align="center">
 	<img src="demo/ch9/LitColumns.png" alt="practice 8.16.3" style="width: 75%; height: auto;" align="center">
 </div>
+
+
+#### Ch11 Stenciling
+```
+git checkout 14549bfdf115ff310436e05e35cb4603e955cafa
+```
+Open **StencilDemo.sln** and run.
+
+<div align="center">
+  <img src="demo/ch11/shadow.gif" width="60%">
+</div>
