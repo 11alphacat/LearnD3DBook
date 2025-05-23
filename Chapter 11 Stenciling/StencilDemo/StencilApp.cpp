@@ -127,6 +127,7 @@ private:
 	RenderItem* mReflectedSkullRitem = nullptr;
 	RenderItem* mShadowedSkullRitem = nullptr;
 	RenderItem* mReflectedShadowedSkullRitem = nullptr;
+	RenderItem* mReflectedFloorRitem = nullptr;
 
 	// List of all the render items.
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
@@ -299,8 +300,13 @@ void StencilApp::Draw(const GameTimer& gt)
 	// Draw the reflection into the mirror only (only for pixels where the stencil buffer is 1).
 	// Note that we must supply a different per-pass constant buffer--one with the lights reflected.
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress() + 1 * passCBByteSize); // use reflected light
+	
 	mCommandList->SetPipelineState(mPSOs["drawStencilReflections"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Reflected]);
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Reflected]); // exclusive of shadow reflected
+
+	// Draw the shadow of the skull.
+	mCommandList->SetPipelineState(mPSOs["reflectedShadow"].Get());
+	DrawRenderItems(mCommandList.Get(), {mReflectedShadowedSkullRitem}); // only include shadow
 
 	// Restore main pass constants and stencil ref.
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
@@ -941,7 +947,8 @@ void StencilApp::BuildPSOs()
 	opaquePsoDesc.SampleDesc.Count = m4xMsaaState ? 4 : 1;
 	opaquePsoDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
 	opaquePsoDesc.DSVFormat = mDepthStencilFormat;
-    ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
+    ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(
+		&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
 
 	//
 	// PSO for transparent objects
@@ -962,7 +969,8 @@ void StencilApp::BuildPSOs()
 	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	
 	transparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&mPSOs["transparent"])));
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(
+		&transparentPsoDesc, IID_PPV_ARGS(&mPSOs["transparent"])));
 
 	//
 	// PSO for marking stencil mirrors.
@@ -993,7 +1001,8 @@ void StencilApp::BuildPSOs()
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC markMirrorsPsoDesc = opaquePsoDesc;
 	markMirrorsPsoDesc.BlendState = mirrorBlendState;
 	markMirrorsPsoDesc.DepthStencilState = mirrorDSS;
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&markMirrorsPsoDesc, IID_PPV_ARGS(&mPSOs["markStencilMirrors"])));
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(
+		&markMirrorsPsoDesc, IID_PPV_ARGS(&mPSOs["markStencilMirrors"])));
 
 	//
 	// PSO for stencil reflections.
@@ -1026,7 +1035,8 @@ void StencilApp::BuildPSOs()
 	// enable alpha blending for reflections
 	drawReflectionsPsoDesc.BlendState = transparentPsoDesc.BlendState;
 
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&drawReflectionsPsoDesc, IID_PPV_ARGS(&mPSOs["drawStencilReflections"])));
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(
+		&drawReflectionsPsoDesc, IID_PPV_ARGS(&mPSOs["drawStencilReflections"])));
 
 	//
 	// PSO for shadow objects
@@ -1054,7 +1064,29 @@ void StencilApp::BuildPSOs()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = transparentPsoDesc;
 	shadowPsoDesc.DepthStencilState = shadowDSS;
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&shadowPsoDesc, IID_PPV_ARGS(&mPSOs["shadow"])));
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(
+		&shadowPsoDesc, IID_PPV_ARGS(&mPSOs["shadow"])));
+
+	//
+	// PSO for reflected shadow
+	//
+	D3D12_DEPTH_STENCIL_DESC reflectedShadowDSS;
+	reflectedShadowDSS.DepthEnable = true;
+	reflectedShadowDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL; 
+	reflectedShadowDSS.DepthFunc = D3D12_COMPARISON_FUNC_LESS; 
+	reflectedShadowDSS.StencilEnable = true;
+	reflectedShadowDSS.StencilReadMask = 0xff;
+	reflectedShadowDSS.StencilWriteMask = 0xff;
+	reflectedShadowDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectedShadowDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectedShadowDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	reflectedShadowDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	reflectedShadowDSS.BackFace = reflectedShadowDSS.FrontFace;
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC reflectedShadowPsoDesc = transparentPsoDesc;
+	reflectedShadowPsoDesc.DepthStencilState = reflectedShadowDSS;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(
+		&reflectedShadowPsoDesc, IID_PPV_ARGS(&mPSOs["reflectedShadow"])));
 }
 
 void StencilApp::BuildFrameResources()
@@ -1191,6 +1223,7 @@ void StencilApp::BuildRenderItems()
 	XMVECTOR mirrorPlane = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
 	XMMATRIX R = XMMatrixReflect(mirrorPlane);		// create a reflect matrix
 	XMStoreFloat4x4(&reflectedFloorRitem->World, floorWorld * R); // reflect the floor
+	mReflectedFloorRitem = reflectedFloorRitem.get();
 	mRitemLayer[(int)RenderLayer::Reflected].push_back(reflectedFloorRitem.get());
 
 	// Reflect the shadow of the skull
@@ -1198,7 +1231,7 @@ void StencilApp::BuildRenderItems()
 	*reflectedShadowedSkullRitem = *shadowedSkullRitem;
 	reflectedShadowedSkullRitem->ObjCBIndex = 7;
 	mReflectedShadowedSkullRitem = reflectedShadowedSkullRitem.get();
-	mRitemLayer[(int)RenderLayer::Reflected].push_back(reflectedShadowedSkullRitem.get());
+	//mRitemLayer[(int)RenderLayer::Reflected].push_back(reflectedShadowedSkullRitem.get());
 
 	mAllRitems.push_back(std::move(floorRitem));
 	mAllRitems.push_back(std::move(wallsRitem));
