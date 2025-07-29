@@ -223,6 +223,17 @@ void Camera::RotateY(float angle)
 	mViewDirty = true;
 }
 
+void Camera::Roll(float angle)
+{
+	// Rotate up and right vector about the look vector.
+	XMMATRIX R = XMMatrixRotationAxis(XMLoadFloat3(&mLook), angle);
+
+	XMStoreFloat3(&mUp,		XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
+	XMStoreFloat3(&mRight,	XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
+
+	mViewDirty = true;
+}
+
 void Camera::UpdateViewMatrix()
 {
 	if(mViewDirty)
@@ -233,16 +244,17 @@ void Camera::UpdateViewMatrix()
 		XMVECTOR P = XMLoadFloat3(&mPosition);
 
 		// Keep camera's axes orthogonal to each other and of unit length.
-		L = XMVector3Normalize(L);
-		U = XMVector3Normalize(XMVector3Cross(L, R));
+		L = XMVector3Normalize(L);						// z-axis homogeneous coordinate relative to world space.
+		U = XMVector3Normalize(XMVector3Cross(L, R));	// y-axis homogeneous coordinate relative to world space.
 
 		// U, L already ortho-normal, so no need to normalize cross product.
-		R = XMVector3Cross(U, L);
+		R = XMVector3Cross(U, L);						// x-axis homogeneous coordinate relative to world space.
 
 		// Fill in the view matrix entries.
-		float x = -XMVectorGetX(XMVector3Dot(P, R));
-		float y = -XMVectorGetX(XMVector3Dot(P, U));
-		float z = -XMVectorGetX(XMVector3Dot(P, L));
+		// ==> red dragon book page 494
+		float x = -XMVectorGetX(XMVector3Dot(P, R)); // -Q * u
+		float y = -XMVectorGetX(XMVector3Dot(P, U)); // -Q * v
+		float z = -XMVectorGetX(XMVector3Dot(P, L)); // -Q * w
 
 		XMStoreFloat3(&mRight, R);
 		XMStoreFloat3(&mUp, U);
